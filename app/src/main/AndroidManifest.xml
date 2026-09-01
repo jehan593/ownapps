@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Needed to show the Node Picker's "press to open" notification while the picker service
+         hosts it; the only foreground service left, so the special-use variant is what's used. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Lets the firewall re-apply its Chain 3 rules after a reboot (Android clears them). -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Deliberately no INTERNET permission: OwnApps is fully offline.
+         Deliberately no QUERY_ALL_PACKAGES: scoped visibility below is sufficient. -->
+
+    <queries>
+        <!-- Needed to enumerate the user's launchable apps to disable/enable. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".OwnAppsApplication"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.OwnApps">
+
+        <!-- Shizuku-related provider: supplies the privileged binder to OwnApps and
+             auto-initializes Sui from Shizuku API v12.1.0+, so both official Shizuku and
+             compatible forks/backends are supported without any fork-specific code. -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/Theme.OwnApps">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Home-screen launcher shortcut (not an AppWidget) — see AllAppsShortcutActivity's
+             class doc. Theme.NoDisplay + exported so the launcher's widget/shortcut picker can
+             both create the pinned icon (CREATE_SHORTCUT) and, later, invoke it (ACTION_VIEW via
+             the pinned icon's own stored intent) without this activity ever drawing a frame. -->
+        <activity
+            android:name=".shortcuts.AllAppsShortcutActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/all_apps_shortcut_label"
+            android:theme="@android:style/Theme.NoDisplay">
+            <intent-filter>
+                <action android:name="android.intent.action.CREATE_SHORTCUT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name=".uihider.UiHiderService"
+            android:exported="false"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/ui_hider_service_config" />
+        </service>
+
+        <!-- Re-applies firewall rules after reboot. BOOT_COMPLETED is a protected system
+             broadcast (only system_server can send it), so exported is harmless. Deliberately
+             BOOT_COMPLETED only, not LOCKED_BOOT_COMPLETED: the rules DB is credential-protected
+             and unreadable before the user unlocks. -->
+        <receiver
+            android:name=".enforcement.FirewallBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Foreground service that keeps the Node Picker's "press to open" notification alive so
+             the user can switch to the app they want to inspect. Actual tree reading and overlay
+             drawing happen in UiHiderService (the accessibility service). -->
+        <service
+            android:name=".uihider.NodePickerService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Hosts the Node Picker notification so the user can inspect the current app and build a UI-hiding rule" />
+        </service>
+
+    </application>
+
+</manifest>

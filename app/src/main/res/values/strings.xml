@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OwnApps</string>
+    <string name="all_apps_shortcut_label">All apps</string>
+    <string name="accessibility_service_description">OwnApps draws overlay rectangles over distracting UI elements in apps you choose (for example WhatsApp\'s FAB and addon buttons) to help you stay focused. It can also inspect the current screen so you can build your own hiding rules with the Node Picker.</string>
+
+    <string name="node_picker_show">Show panel</string>
+    <string name="node_picker_hide">Hide</string>
+    <string name="node_picker_up">▲ Up</string>
+    <string name="node_picker_deeper">▼ Deeper</string>
+    <string name="node_picker_move">Move</string>
+    <string name="node_picker_info">Info</string>
+    <string name="node_picker_copy">Use as rule</string>
+    <string name="node_picker_close">Close</string>
+    <string name="node_picker_hint">Tap any element to select it, then \'Use as rule\'.</string>
+    <string name="node_picker_no_children">No child elements.</string>
+    <string name="node_picker_copied">Selector copied to clipboard.</string>
+    <string name="node_picker_channel_name">Node Picker</string>
+    <string name="node_picker_notif_title">Node Picker active</string>
+    <string name="node_picker_notif_text">Tap to inspect the current app and build a hiding rule.</string>
+    <string name="node_picker_stop">Stop</string>
+</resources>

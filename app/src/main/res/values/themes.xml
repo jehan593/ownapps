@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        Compose draws the app's real UI (see OwnAppsTheme); this XML theme is only what the
+        manifest/system needs before the first Compose frame (launch/splash background, status
+        bar color) and follows the same Nord Polar Night background.
+    -->
+    <style name="Theme.OwnApps" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
+        <item name="android:statusBarColor">@color/ic_launcher_background</item>
+    </style>
+</resources>

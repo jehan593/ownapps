@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 2x2 app-mark grid in the Nord palette on the polar-night launcher background: a small cluster
+     of apps ("own apps"), the friendly face the launcher shows. Kept within the ~66dp adaptive-icon
+     safe zone of the 108dp viewport. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#88C0D0"
+        android:pathData="M30,30 h20 a5,5 0 0 1 5,5 v10 a5,5 0 0 1 -5,5 h-20 a5,5 0 0 1 -5,-5 v-10 a5,5 0 0 1 5,-5 z" />
+    <path
+        android:fillColor="#81A1C1"
+        android:pathData="M58,30 h20 a5,5 0 0 1 5,5 v10 a5,5 0 0 1 -5,5 h-20 a5,5 0 0 1 -5,-5 v-10 a5,5 0 0 1 5,-5 z" />
+    <path
+        android:fillColor="#5E81AC"
+        android:pathData="M30,58 h20 a5,5 0 0 1 5,5 v10 a5,5 0 0 1 -5,5 h-20 a5,5 0 0 1 -5,-5 v-10 a5,5 0 0 1 5,-5 z" />
+    <path
+        android:fillColor="#8FBCBB"
+        android:pathData="M58,58 h20 a5,5 0 0 1 5,5 v10 a5,5 0 0 1 -5,5 h-20 a5,5 0 0 1 -5,-5 v-10 a5,5 0 0 1 5,-5 z" />
+</vector>
