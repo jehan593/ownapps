@@ -13,15 +13,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -42,14 +42,13 @@ import com.ownapps.app.ui.rememberAppContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onOpenUiHider: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val container = rememberAppContainer()
     val viewModel: SettingsViewModel = viewModel(
         factory = viewModelFactory {
             initializer {
                 SettingsViewModel(
-                    container.settingsRepository,
                     container.packageController,
                     context.applicationContext
                 )
@@ -90,86 +89,80 @@ fun SettingsScreen(onBack: () -> Unit, onOpenUiHider: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            if (!uiState.shizukuReady) {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            text = "Shizuku is needed to disable apps.",
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = when {
-                                !uiState.shizukuServiceReady ->
-                                    "Shizuku isn't running. Install and start it."
-                                !uiState.shizukuPermissionGranted ->
-                                    "Shizuku is running, but permission isn't granted."
-                                else -> ""
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
-                        )
-                        if (uiState.shizukuServiceReady && !uiState.shizukuPermissionGranted) {
-                            Spacer(Modifier.height(8.dp))
-                            OutlinedButton(
-                                onClick = { viewModel.requestShizukuPermission() },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
+            PermissionCard(
+                title = "Shizuku",
+                description = "Privileged backend used to disable apps and run the firewall.",
+                granted = uiState.shizukuReady,
+                action = {
+                    when {
+                        !uiState.shizukuServiceReady ->
+                            Text("Shizuku isn't running. Install and start it to enable app control.")
+                        !uiState.shizukuPermissionGranted ->
+                            Button(onClick = { viewModel.requestShizukuPermission() }) {
                                 Text("Grant Shizuku permission")
                             }
+                    }
+                }
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            PermissionCard(
+                title = "Accessibility",
+                description = "Used by the UI Hider to overlay and hide distracting elements.",
+                granted = uiState.uiHiderServiceEnabled,
+                action = {
+                    if (!uiState.uiHiderServiceEnabled) {
+                        Button(
+                            onClick = {
+                                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            }
+                        ) {
+                            Text("Turn on accessibility")
                         }
                     }
                 }
-            }
+            )
 
             Spacer(gap)
             HorizontalDivider()
             Spacer(gap)
+        }
+    }
+}
 
+@Composable
+private fun PermissionCard(
+    title: String,
+    description: String,
+    granted: Boolean,
+    action: @Composable () -> Unit
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("UI Hider", style = MaterialTheme.typography.titleSmall)
+                    Text(title, style = MaterialTheme.typography.titleSmall)
                     Text(
-                        text = "Hide distracting buttons and pop-ups in your apps.",
+                        text = description,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                Switch(
-                    checked = uiState.uiHiderEnabled,
-                    onCheckedChange = { viewModel.setUiHiderEnabled(it) }
-                )
-            }
-            if (uiState.uiHiderEnabled && !uiState.uiHiderServiceEnabled) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "Enable the accessibility service to make overlays work.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error
-                )
-                OutlinedButton(
-                    onClick = {
-                        viewModel.setUiHiderEnabled(true)
-                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Open accessibility settings")
+                if (granted) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = "Granted",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
             }
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onOpenUiHider,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Manage UI Hider scripts")
+            if (!granted) {
+                Spacer(Modifier.height(8.dp))
+                action()
             }
-
-            Spacer(gap)
-            HorizontalDivider()
-            Spacer(gap)
         }
     }
 }
