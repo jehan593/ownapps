@@ -301,6 +301,7 @@ private fun ScriptEditorScreen(
                 onValueChange = { packageName = it },
                 label = { Text("App package (e.g. com.whatsapp)") },
                 singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(8.dp))
@@ -309,6 +310,7 @@ private fun ScriptEditorScreen(
                 onValueChange = { label = it },
                 label = { Text("Label") },
                 singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(12.dp))

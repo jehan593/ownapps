@@ -32,6 +32,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -223,6 +224,7 @@ fun FirewallScreen(onBack: () -> Unit) {
                 onValueChange = { searchQuery = it },
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 placeholder = { Text("Search apps") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
             )
