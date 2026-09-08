@@ -83,7 +83,15 @@ AppComponent wiring is in `di/AppContainer.kt` (manual DI, no Hilt).
   `SettingsRepository`), so they behave like any user-created script — editable, toggleable,
   deletable. The interactive **Node Picker**
   (`uihider/NodePicker.kt` + `NodePickerService.kt`) lets users build rules by tapping live screen
-  nodes. Entry point is Settings → **Manage UI Hider scripts** (`UiHiderScreen`).
+  nodes. Entry point is the
+  **UI Hider icon (visibility-off) in the All Apps top bar**, next to the Firewall shield.
+
+- **Settings** (`ui/settings/SettingsScreen.kt` + `SettingsViewModel.kt`) is now just a
+  permissions panel: a **Shizuku** card (shows granted when the backend is up and authorized,
+  otherwise a "Grant Shizuku permission" button, or a hint that Shizuku isn't running) and an
+  **Accessibility** card (shows granted when the `UiHiderService` is enabled, otherwise a
+  "Turn on accessibility" button that opens the system accessibility settings). No UI Hider
+  scripts/toggle live here anymore.
 
 ## Data / storage
 

@@ -1,6 +1,7 @@
 package com.ownapps.app.ui.firewall
 
 import android.os.Build
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -236,7 +237,12 @@ fun FirewallScreen(onBack: () -> Unit) {
                 LazyColumn(modifier = Modifier.fillMaxSize(), state = lazyListState) {
                 if (pinnedApps.isNotEmpty() && searchQuery.isBlank()) {
                     item(key = "pinned_header") {
-                        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
                             Text(text = "Pinned", style = MaterialTheme.typography.labelMedium)
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(

@@ -60,14 +60,12 @@ fun OwnAppsNavHost(
         composable(Routes.APP_LIST) {
             AppListScreen(
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                onOpenFirewall = { navController.navigate(Routes.FIREWALL) }
+                onOpenFirewall = { navController.navigate(Routes.FIREWALL) },
+                onOpenUiHider = { navController.navigate(Routes.UI_HIDER) }
             )
         }
         composable(Routes.SETTINGS) {
-            SettingsScreen(
-                onBack = { navController.popBackStack() },
-                onOpenUiHider = { navController.navigate(Routes.UI_HIDER) }
-            )
+            SettingsScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.UI_HIDER) {
             UiHiderScreen(onBack = { navController.popBackStack() })

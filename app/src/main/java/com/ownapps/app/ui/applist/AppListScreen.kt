@@ -1,5 +1,6 @@
 package com.ownapps.app.ui.applist
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -69,7 +71,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit) {
+fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit, onOpenUiHider: () -> Unit) {
     val context = LocalContext.current
     val container = rememberAppContainer()
     val scope = rememberCoroutineScope()
@@ -143,8 +145,11 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("All apps") },
+                title = { Text("OwnApps") },
                 actions = {
+                    IconButton(onClick = onOpenUiHider) {
+                        Icon(Icons.Filled.VisibilityOff, contentDescription = "UI Hider")
+                    }
                     IconButton(onClick = onOpenFirewall) {
                         Icon(Icons.Filled.Shield, contentDescription = "Firewall")
                     }
@@ -175,7 +180,12 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit) {
             LazyColumn(modifier = Modifier.fillMaxSize(), state = lazyListState) {
                 if (pinnedApps.isNotEmpty() && searchQuery.isBlank()) {
                     item(key = "pinned_header") {
-                        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.surface)
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
                             Text(text = "Pinned", style = MaterialTheme.typography.labelMedium)
                             Spacer(modifier = Modifier.height(8.dp))
                             Row(
