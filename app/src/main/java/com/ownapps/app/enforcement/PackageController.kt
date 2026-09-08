@@ -10,15 +10,10 @@ import rikka.shizuku.SystemServiceHelper
 /**
  * Drives app disabling/enabling through a Shizuku-family privileged backend.
  *
- * Only the *unified* `rikka.shizuku.Shizuku` compatibility layer is used here, never any
- * fork-specific API — so this works identically against official Shizuku, Sui, and the various
- * Shizuku forks that keep the upstream binder protocol. `ShizukuProvider` (see the manifest)
- * already auto-initializes Sui from v12.1.0 on, so no fork-conditional code path is maintained.
- *
- * "Disable" is `pm disable-user` semantics: `PackageManager` is told to set the app to the
- * user-disabled state ([COMPONENT_ENABLED_STATE_DISABLED_USER]) via the privileged
- * `IPackageManager` service, which removes it from the launcher and prevents it from launching
- * until re-enabled.
+ * Only the unified `rikka.shizuku.Shizuku` layer is used — never fork-specific APIs — so it works
+ * with official Shizuku, Sui, and compatible forks. "Disable" is `pm disable-user` semantics:
+ * the app is set to [COMPONENT_ENABLED_STATE_DISABLED_USER], which removes it from the launcher
+ * and stops it launching until re-enabled.
  */
 interface PackageController {
     suspend fun disable(packageName: String)

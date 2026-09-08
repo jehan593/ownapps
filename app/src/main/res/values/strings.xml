@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">OwnApps</string>
     <string name="all_apps_shortcut_label">All apps</string>
-    <string name="accessibility_service_description">OwnApps draws overlay rectangles over distracting UI elements in apps you choose (for example WhatsApp\'s FAB and addon buttons) to help you stay focused. It can also inspect the current screen so you can build your own hiding rules with the Node Picker.</string>
+    <string name="accessibility_service_description">OwnApps can hide distracting buttons and pop-ups in apps you choose, and helps you build rules by tapping elements on the screen.</string>
 
     <string name="node_picker_show">Show panel</string>
     <string name="node_picker_hide">Hide</string>

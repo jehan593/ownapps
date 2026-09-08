@@ -169,7 +169,7 @@ fun FirewallScreen(onBack: () -> Unit) {
                         // (selected apps have no internet), OFF = everything connects normally.
                         Text(
                             text = if (uiState.firewallEnabled) {
-                                "Blocked apps can't send or receive data. They reconnect when you turn this off."
+                                "Blocked apps have no internet until you turn this off."
                             } else {
                                 "Turn on to stop selected apps from using the internet."
                             },
@@ -199,7 +199,7 @@ fun FirewallScreen(onBack: () -> Unit) {
                         !uiState.isServiceReady ->
                             "Firewall needs Shizuku (or a compatible backend like Sui) running."
                         !uiState.isPermissionGranted ->
-                            "Shizuku is running, but permission was not granted."
+                            "Shizuku is running, but permission isn't granted."
                         else -> "The firewall backend is unavailable."
                     },
                     style = MaterialTheme.typography.bodySmall,
@@ -226,7 +226,7 @@ fun FirewallScreen(onBack: () -> Unit) {
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
             )
 
-            if (uiState.isLoading) {
+            if (uiState.isLoading && uiState.rows.isEmpty()) {
                 // First load only — prevents the list (pinned apps included) from flashing in
                 // out of nowhere; the launcher-only query is fast so this is a brief spinner.
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

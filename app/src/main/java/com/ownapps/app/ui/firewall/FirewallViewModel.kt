@@ -15,7 +15,7 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -57,70 +57,58 @@ class FirewallViewModel(
     val uiState: StateFlow<FirewallUiState> = _uiState.asStateFlow()
 
     private var appsCache: List<LaunchableApp> = emptyList()
-    @Volatile
     private var blockedPackages: Set<String> = emptySet()
-    @Volatile
     private var pinnedPackages: Set<String> = emptySet()
-    @Volatile
     private var pinnedPositions: Map<String, Int> = emptyMap()
     private var pinnedOrder: List<String> = emptyList()
-    @Volatile
     private var appsLoaded = false
+    private var statesReady = false
 
     init {
         viewModelScope.launch {
-            firewallRulesRepository.observeAllBlocked().collectLatest { blocked ->
-                blockedPackages = blocked.map { it.packageName }.toSet()
-                maybeEmit()
-            }
-        }
-        viewModelScope.launch {
-            firewallPinnedAppsRepository.observePinned().collectLatest { pinned ->
-                pinnedPackages = pinned.map { it.packageName }.toSet()
-                pinnedPositions = pinned.associate { it.packageName to it.position }
-                pinnedOrder = pinned.map { it.packageName }
-                maybeEmit()
-            }
+            // Combine the two Room-backed flows into a single consistent snapshot. Gating the first
+            // emission on both the app list and this snapshot being ready (see maybeEmit) keeps the
+            // blocked/allowed switches from flashing into the wrong state right after the page
+            // opens, the same pattern as the All Apps list.
+            combine(
+                firewallRulesRepository.observeAllBlocked(),
+                firewallPinnedAppsRepository.observePinned()
+            ) { blockedRows, pinnedRows ->
+                blockedPackages = blockedRows.map { it.packageName }.toSet()
+                pinnedPackages = pinnedRows.map { it.packageName }.toSet()
+                pinnedPositions = pinnedRows.associate { it.packageName to it.position }
+                pinnedOrder = pinnedRows.map { it.packageName }
+                statesReady = true
+            }.collect { maybeEmit() }
         }
     }
 
     /** Re-queries the installed app list and refreshes the toggle state. Call whenever the screen
-     *  is shown so new installs surface and the backend gets re-probed. */
+     *  is shown so new installs surface and the backend gets re-probed. The PackageManager list is
+     *  served from a short TTL cache dropped on package add/remove/replace broadcasts, keeping
+     *  re-opens instant. */
     suspend fun refresh() {
-        reloadApps()
-        emitState()
+        // Stale-while-revalidate: render the previous snapshot first so a screen re-entry during a
+        // session never flashes back to a spinner while the refreshed list is being fetched.
+        if (appsCache.isNotEmpty() && statesReady) emitState()
+        appsCache = installedAppsRepository.getLaunchableApps()
+            .filter { it.packageName !in BACKEND_GUARD }
+        appsLoaded = true
+        maybeEmit()
         refreshFirewallState()
     }
 
     private fun maybeEmit() {
-        if (appsLoaded) {
+        if (appsLoaded && statesReady) {
             emitState()
-        } else {
-            viewModelScope.launch {
-                reloadApps()
-                emitState()
-            }
         }
     }
 
-    private suspend fun reloadApps() {
-        installedAppsRepository.invalidate()
-        // The same launcher-only list as the All Apps screen (no QUERY_ALL_PACKAGES), minus the
-        // Shizuku/Sui backends ownapps's firewall runs through — blocking their network would kill
-        // the very privilege channel the firewall uses.
-        appsCache = installedAppsRepository.getLaunchableApps()
-            .filter { it.packageName !in BACKEND_GUARD }
-        appsLoaded = true
-    }
-
     /**
-     * Resolves the backend state the master switch depends on. The switch position is driven by
-     * the persisted "last enforced" flag (see [SettingsRepository.FIREWALL_ENABLED]) rather than a
-     * live probe of Chain 3 — reading that back from the platform is unreliable (it can fail right
-     * after boot or during a cold start) and nothing but this switch ever changes it. If the
-     * Shizuku binder isn't up yet, wait briefly for it so the "needs Shizuku" banner and the
-     * switch don't flash wrong values on every screen entry; once [checkedBackend] is set the
-     * result is final for this screen visit.
+     * Resolves the backend state for the master switch. We read the persisted "last enforced"
+     * flag instead of probing Chain 3 live — reading it back can fail right after boot, and
+     * nothing but the switch ever changes it. If the Shizuku binder isn't up yet, wait briefly
+     * so the banner and switch don't flash wrong values on entry.
      */
     private suspend fun refreshFirewallState() {
         val serviceReady = firewallController.isServiceReady()

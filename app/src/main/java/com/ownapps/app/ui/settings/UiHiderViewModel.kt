@@ -5,7 +5,7 @@ import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ownapps.app.data.repository.SettingsRepository
-import com.ownapps.app.uihider.DEFAULT_UIHIDER_SCRIPT_IDS
+import com.ownapps.app.uihider.BUILTIN_UIHIDER_SCRIPTS
 import com.ownapps.app.uihider.NodePickerService
 import com.ownapps.app.uihider.UiHiderConfig
 import com.ownapps.app.uihider.UiHiderScript
@@ -25,8 +25,7 @@ data class UiHiderScriptItem(
     val packageName: String,
     val label: String,
     val source: String,
-    val isEnabled: Boolean,
-    val isPreset: Boolean
+    val isEnabled: Boolean
 )
 
 data class UiHiderListState(
@@ -45,6 +44,7 @@ class UiHiderViewModel(
 
     init {
         viewModelScope.launch {
+            settingsRepository.seedBuiltinUiHiderScripts(BUILTIN_UIHIDER_SCRIPTS)
             settingsRepository.uiHiderConfigFlow.map { config -> toListState(config, _uiState.value.serviceEnabled) }
                 .collect { _uiState.value = it }
         }
@@ -58,8 +58,7 @@ class UiHiderViewModel(
                 packageName = script.packageName,
                 label = script.label,
                 source = script.source,
-                isEnabled = script.isEnabled,
-                isPreset = script.id in DEFAULT_UIHIDER_SCRIPT_IDS
+                isEnabled = script.isEnabled
             )
         }
         return _uiState.value.copy(isActive = config.isActive, scripts = items, serviceEnabled = serviceEnabled)
@@ -78,16 +77,7 @@ class UiHiderViewModel(
         viewModelScope.launch { settingsRepository.setUiHiderConfig(currentConfig().copy(isActive = active)) }
     }
 
-    fun togglePreset(id: String, enabled: Boolean) {
-        viewModelScope.launch {
-            val cfg = currentConfig()
-            val ids = cfg.enabledPresetIds.toMutableSet()
-            if (enabled) ids.add(id) else ids.remove(id)
-            settingsRepository.setUiHiderConfig(cfg.copy(enabledPresetIds = ids.toList()))
-        }
-    }
-
-    /** Toggle a user-created (custom) script's on/off state. Presets should use [togglePreset]. */
+    /** Toggle a script's on/off state. */
     fun toggleCustomScript(id: String, enabled: Boolean) {
         viewModelScope.launch {
             val cfg = currentConfig()

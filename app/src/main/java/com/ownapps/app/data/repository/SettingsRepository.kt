@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.google.gson.Gson
 import com.ownapps.app.uihider.UiHiderConfig
+import com.ownapps.app.uihider.UiHiderScript
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -22,6 +23,8 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     companion object {
         val UI_HIDER_ENABLED = booleanPreferencesKey("ui_hider_enabled")
         val UI_HIDER_CONFIG = stringPreferencesKey("ui_hider_config")
+        /** Records that the built-in starter scripts have been seeded into the user's script list. */
+        val UI_HIDER_SCRIPTS_SEEDED = booleanPreferencesKey("ui_hider_scripts_seeded")
         /** Last known "is the firewall actually enforced" state — Chain 3 is reset by Android on
          *  reboot, so this is what the boot receiver consults to decide whether to re-enable it. */
         val FIREWALL_ENABLED = booleanPreferencesKey("firewall_enabled")
@@ -61,6 +64,35 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { prefs ->
             prefs[UI_HIDER_CONFIG] = json
             prefs[UI_HIDER_ENABLED] = config.isActive
+        }
+    }
+
+    /**
+     * One-time seed: turns the shipped built-in starter scripts into ordinary user scripts in the
+     * persisted config. A fresh config starts with the built-ins enabled; an existing install
+     * keeps its legacy preset enabled state. Legacy [UiHiderConfig.enabledPresetIds] entries are
+     * cleared. The seed marker stops a built-in the user has deleted from ever being re-added.
+     */
+    suspend fun seedBuiltinUiHiderScripts(builtIns: List<UiHiderScript>) {
+        val prefs = dataStore.data.first()
+        if (prefs[UI_HIDER_SCRIPTS_SEEDED] == true) return
+        val rawConfig = prefs[UI_HIDER_CONFIG]
+        val config = parseConfig(rawConfig)
+        val own = config.scripts.associateBy { it.id }
+        val scriptsToAdd = builtIns.filterNot { it.id in own }.map { script ->
+            script.copy(
+                isEnabled = if (rawConfig != null) script.id in config.enabledPresetIds else script.isEnabled
+            )
+        }
+        dataStore.edit {
+            it[UI_HIDER_CONFIG] = gson.toJson(
+                config.copy(
+                    scripts = config.scripts + scriptsToAdd,
+                    enabledPresetIds = emptyList()
+                )
+            )
+            it[UI_HIDER_SCRIPTS_SEEDED] = true
+            it[UI_HIDER_ENABLED] = config.isActive
         }
     }
 

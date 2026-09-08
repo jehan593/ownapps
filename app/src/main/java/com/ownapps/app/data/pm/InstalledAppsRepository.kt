@@ -16,16 +16,10 @@ data class LaunchableApp(
 )
 
 /**
- * The installed-app list is expensive to compute (PackageManager query + loadIcon() per app) but
- * rarely changes — most callers just want "what's installed," not a live-updating view of it. In
- * particular the widget re-queries this on every refresh tick (every 15-300s while a widget
- * instance exists), which without caching means a full PackageManager scan + icon load for every
- * installed app that often, just to compute a top-3 list. A short TTL cache cuts that down; a
- * package-add/remove broadcast (see [invalidate]) covers the case where a change happens inside
- * that window instead of shrinking the TTL for everyone.
+ * Caches the installed-app list, which is expensive to build (PackageManager query + icon per
+ * app) and rarely changes. A short TTL plus invalidation on package add/remove keeps callers fast.
  *
- * The list is the *launchable* set (apps with a launcher activity). Screens that need a broader
- * set must query PackageManager themselves.
+ * The list is the *launchable* set (apps with a launcher activity).
  */
 class InstalledAppsRepository(private val packageManager: PackageManager, private val selfPackage: String) {
 
@@ -59,10 +53,8 @@ class InstalledAppsRepository(private val packageManager: PackageManager, privat
 
     private suspend fun queryLaunchableApps(): List<LaunchableApp> = withContext(Dispatchers.Default) {
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        // MATCH_DISABLED_COMPONENTS keeps apps that OwnApps has disabled (pm disable-user) in the
-        // list: with flags 0 the query silently drops disabled packages, which made a disabled app
-        // vanish from OwnApps's own list — the exact opposite of what a blocker should do. Disabled
-        // apps must stay visible so their toggle can still clear them.
+        // MATCH_DISABLED_COMPONENTS keeps apps OwnApps has disabled in the list — without it,
+        // the query silently drops them, hiding exactly the apps the blocker is meant to manage.
         packageManager.queryIntentActivities(launcherIntent, PackageManager.MATCH_DISABLED_COMPONENTS)
             .asSequence()
             .map { it.activityInfo.applicationInfo }

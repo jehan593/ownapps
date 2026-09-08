@@ -3,6 +3,7 @@ package com.ownapps.app.ui.applist
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -22,6 +23,7 @@ import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -97,11 +99,9 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit) {
         filteredApps.filter { it.isPinned }.sortedBy { it.pinPosition }
     }
     val otherApps = remember(filteredApps) { filteredApps.filterNot { it.isPinned } }
-    // Pinned rows live in a reorder-only local snapshot so drag-and-drop can animate moves without
-    // fighting the DB-backed Flow re-emitting mid-drag. Resync is intentionally *set* based so a
-    // pure reorder (same package set) never snaps the order back — that keeps drags smooth. Row
-    // data is rendered via [displayPinned], which joins the live [pinnedApps] rows (current
-    // isSuspended/label) onto this drag order, so enable toggles stay responsive.
+    // Pinned rows live in a local snapshot so drag-and-drop animates without fighting the
+    // DB Flow mid-drag. The snapshot only resyncs when the pinned set changes, keeping reorders
+    // smooth; [displayPinned] joins the live rows (current toggle state) onto the drag order.
     val orderedPinned = remember { mutableStateListOf<AppListRow>().apply { addAll(pinnedApps) } }
     val displayPinned by remember(orderedPinned, pinnedApps) {
         derivedStateOf {
@@ -164,6 +164,14 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit) {
                 placeholder = { Text("Search apps") },
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) }
             )
+            if (uiState.isLoading && uiState.apps.isEmpty()) {
+                // First load only. The list and its toggle states are populated together (see
+                // AppListViewModel.maybeEmit), so a spinner is shown instead of an empty list that
+                // would otherwise pop in and snap switches into place a frame later.
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
             LazyColumn(modifier = Modifier.fillMaxSize(), state = lazyListState) {
                 if (pinnedApps.isNotEmpty() && searchQuery.isBlank()) {
                     item(key = "pinned_header") {
@@ -197,6 +205,7 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit) {
                             }
                         }
                     }
+                }
                 items(displayPinned, key = { it.packageName }) { app ->
                     ReorderableItem(reorderableState, key = app.packageName) { isDragging ->
                         val elevation by animateDpAsState(
@@ -253,7 +262,6 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit) {
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                     }
-                }
 
                 items(otherApps, key = { it.packageName }) { app ->
                     AppRowWithBlock(
@@ -276,6 +284,7 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit) {
                     )
                     HorizontalDivider()
                 }
+            }
             }
         }
     }
