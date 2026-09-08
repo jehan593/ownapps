@@ -103,7 +103,7 @@ fun SettingsScreen(onBack: () -> Unit, onOpenUiHider: () -> Unit) {
                                 !uiState.shizukuServiceReady ->
                                     "Shizuku isn't running. Install and start it."
                                 !uiState.shizukuPermissionGranted ->
-                                    "Shizuku is running, but permission was not granted."
+                                    "Shizuku is running, but permission isn't granted."
                                 else -> ""
                             },
                             style = MaterialTheme.typography.bodySmall,

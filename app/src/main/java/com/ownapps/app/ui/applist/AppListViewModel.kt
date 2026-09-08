@@ -10,7 +10,7 @@ import com.ownapps.app.enforcement.PackageBlocker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 data class AppListRow(
@@ -40,55 +40,51 @@ class AppListViewModel(
     val uiState: StateFlow<AppListUiState> = _uiState.asStateFlow()
 
     private var appsCache: List<LaunchableApp> = emptyList()
-    @Volatile
     private var suspendedPackages: Set<String> = emptySet()
-    @Volatile
     private var pinnedPackages: Set<String> = emptySet()
-    @Volatile
     private var pinnedPositions: Map<String, Int> = emptyMap()
     private var pinnedOrder: List<String> = emptyList()
-    @Volatile
     private var appsLoaded = false
+    private var statesReady = false
 
     init {
         viewModelScope.launch {
-            suspendStateRepository.observeAllSuspended().collectLatest { suspended ->
+            // Combine the two flows into one snapshot so a switch never shows stale toggle state.
+            // The first emission waits for both plus the app list (see maybeEmit), so switches
+            // don't flash "enabled" and snap into place once Room's first reading arrives.
+            combine(
+                suspendStateRepository.observeAllSuspended(),
+                pinnedAppsRepository.observePinned()
+            ) { suspended, pinned ->
                 suspendedPackages = suspended.map { it.packageName }.toSet()
-                maybeEmit()
-            }
-        }
-        viewModelScope.launch {
-            pinnedAppsRepository.observePinned().collectLatest { pinned ->
                 pinnedPackages = pinned.map { it.packageName }.toSet()
                 pinnedPositions = pinned.associate { it.packageName to it.position }
                 pinnedOrder = pinned.map { it.packageName }
-                maybeEmit()
-            }
+                statesReady = true
+            }.collect { maybeEmit() }
         }
     }
 
-    /** Re-queries the installed app list and pushes a fresh UI state. Call whenever the screen is
-     *  shown (All Apps opened) so new installs and state changes surface. */
+    /**
+     * Reloads the app list. Called when the screen opens; the list is served from a short-lived
+     * cache so re-opening stays instant, and drop the cache only on package add/remove.
+     */
     suspend fun refresh() {
-        reloadApps()
-        emitState()
+        // Stale-while-revalidate: show the last snapshot immediately if we have one, so a refresh
+        // never flashes back to a spinner.
+        if (appsCache.isNotEmpty() && statesReady) emitState()
+        appsCache = installedAppsRepository.getLaunchableApps()
+        appsLoaded = true
+        maybeEmit()
     }
 
     private fun maybeEmit() {
-        if (appsLoaded) {
+        // Hold the first frame back until both inputs are available: app rows alone (or toggle
+        // state alone) would render a list whose switches jump to their real states a moment after
+        // the page opens.
+        if (appsLoaded && statesReady) {
             emitState()
-        } else {
-            viewModelScope.launch {
-                reloadApps()
-                emitState()
-            }
         }
-    }
-
-    private suspend fun reloadApps() {
-        installedAppsRepository.invalidate()
-        appsCache = installedAppsRepository.getLaunchableApps()
-        appsLoaded = true
     }
 
     private fun emitState() {

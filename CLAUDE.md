@@ -78,8 +78,10 @@ AppComponent wiring is in `di/AppContainer.kt` (manual DI, no Hilt).
   (`uihider/script/` — Lexer/Parser/Interpreter/Builtins) to compute geometry and draw
   overlays/press back/home. Sandboxed with a `Budget` and crash-shielded so a bad script can never
   kill the accessibility service. Config is a serialized `UiHiderConfig`/`UiHiderScript` JSON
-  string in DataStore (kept for R8 in `proguard-rules.pro`); preset scripts ship in code
-  (`UiHiderSamples.kt`) and only their enabled-ids are persisted. The interactive **Node Picker**
+  string in DataStore (kept for R8 in `proguard-rules.pro`); built-in starter scripts ship in code
+  (`UiHiderSamples.kt`) and are seeded once into the user's own script list (marker in
+  `SettingsRepository`), so they behave like any user-created script — editable, toggleable,
+  deletable. The interactive **Node Picker**
   (`uihider/NodePicker.kt` + `NodePickerService.kt`) lets users build rules by tapping live screen
   nodes. Entry point is Settings → **Manage UI Hider scripts** (`UiHiderScreen`).
 
