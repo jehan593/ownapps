@@ -4,8 +4,7 @@ A fully offline Android app manager. See every app you've installed, pin your fa
 top, and disable or enable apps whenever you want. No internet access, no screen-time tracking,
 no analytics — just a clean list and a switch.
 
-> **FYI:** This project is fully vibe coded — it was built with heavy help from AI. Read it,
-> trust it, but also don't be afraid to change it.
+> **FYI:** This project is fully vibe coded
 
 ## Features
 
