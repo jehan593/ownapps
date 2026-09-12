@@ -53,7 +53,9 @@ class FirewallViewModel(
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(FirewallUiState())
+    private val _uiState = MutableStateFlow(
+        FirewallUiState(firewallEnabled = settingsRepository.firewallEnabledCached())
+    )
     val uiState: StateFlow<FirewallUiState> = _uiState.asStateFlow()
 
     private var appsCache: List<LaunchableApp> = emptyList()
@@ -66,10 +68,13 @@ class FirewallViewModel(
 
     init {
         viewModelScope.launch {
-            // Combine the two Room-backed flows into a single consistent snapshot. Gating the first
-            // emission on both the app list and this snapshot being ready (see maybeEmit) keeps the
-            // blocked/allowed switches from flashing into the wrong state right after the page
-            // opens, the same pattern as the All Apps list.
+            // Seed the master switch from disk in case the binder's own probe lands later.
+            settingsRepository.preloadFirewallState()
+            _uiState.update { it.copy(firewallEnabled = settingsRepository.firewallEnabledCached()) }
+        }
+        viewModelScope.launch {
+            // Combine the two Room flows into one snapshot; the first emission then waits for the
+            // app list too (see maybeEmit) so blocked/allowed switches never flash wrong values.
             combine(
                 firewallRulesRepository.observeAllBlocked(),
                 firewallPinnedAppsRepository.observePinned()
@@ -83,14 +88,22 @@ class FirewallViewModel(
         }
     }
 
-    /** Re-queries the installed app list and refreshes the toggle state. Call whenever the screen
-     *  is shown so new installs surface and the backend gets re-probed. The PackageManager list is
-     *  served from a short TTL cache dropped on package add/remove/replace broadcasts, keeping
-     *  re-opens instant. */
+    /** Re-queries the installed app list and re-probes the backend. Call whenever the screen is shown.
+     *  The list is served from a short TTL cache dropped on package add/remove/replace. */
     suspend fun refresh() {
-        // Stale-while-revalidate: render the previous snapshot first so a screen re-entry during a
-        // session never flashes back to a spinner while the refreshed list is being fetched.
+        // Render the previous snapshot first so re-entry never flashes back to a spinner.
         if (appsCache.isNotEmpty() && statesReady) emitState()
+        appsCache = installedAppsRepository.getLaunchableApps()
+            .filter { it.packageName !in BACKEND_GUARD }
+        appsLoaded = true
+        maybeEmit()
+        refreshFirewallState()
+    }
+
+    /** Manual-pull variant: bypasses the cache and re-probes the backend. Only ever triggered by a
+     *  manual pull gesture. */
+    suspend fun refreshAll() {
+        installedAppsRepository.invalidate()
         appsCache = installedAppsRepository.getLaunchableApps()
             .filter { it.packageName !in BACKEND_GUARD }
         appsLoaded = true
@@ -105,18 +118,15 @@ class FirewallViewModel(
     }
 
     /**
-     * Resolves the backend state for the master switch. We read the persisted "last enforced"
-     * flag instead of probing Chain 3 live — reading it back can fail right after boot, and
-     * nothing but the switch ever changes it. If the Shizuku binder isn't up yet, wait briefly
-     * so the banner and switch don't flash wrong values on entry.
+     * Resolves backend state for the master switch. Reads the persisted "last enforced" flag
+     * instead of probing Chain 3 live: the probe can fail right after boot, and nothing but the
+     * switch ever changes it. Waits briefly for the binder so nothing flashes a wrong value.
      */
     private suspend fun refreshFirewallState() {
         val serviceReady = firewallController.isServiceReady()
         val intended = settingsRepository.isFirewallEnabled()
         if (!serviceReady) {
-            // Show the persisted "last enforced" state from the very first frame so the toggle
-            // never flashes the opposite position while the Shizuku binder is coming up. The
-            // switch stays disabled until the backend is resolved ([checkedBackend]).
+            // Keep the persisted state until the binder resolves so the switch never flips wrong.
             _uiState.update {
                 it.copy(
                     firewallEnabled = intended,
@@ -207,12 +217,8 @@ class FirewallViewModel(
         }
     }
 
-    /**
-     * Master firewall switch (original semantics: ON = firewall enforcing, OFF = idle). Turning it
-     * on also re-applies every locally-persisted block, which self-heals a set of rules the
-     * platform cleared on reboot. The resulting enforced state is recorded in
-     * [SettingsRepository] so a later boot can re-apply it automatically.
-     */
+    /** Master firewall switch. Turning it on re-applies every persisted block (the platform clears
+     *  them on reboot); the resulting state is recorded so a later boot can restore it. */
     fun setFirewallEnabled(enabled: Boolean) {
         viewModelScope.launch {
             val chainTurnedOn = if (enabled) {

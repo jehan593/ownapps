@@ -21,13 +21,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * One app row for the Firewall list. Left: icon + label. Right: an internet [Switch].
+ * One app row for the Firewall list. Left: icon + label, right: an internet [Switch].
  *
- * The switch is ON when the app has internet access and OFF when it's blocked — i.e. it reads as
- * the connection state, the inverse of the persisted "blocked" flag. Turning it (off/on) requires
- * [canToggle] — the privileged backend running *and* the master firewall switch enforcing,
- * because a per-app rule silently does nothing while Chain 3 is off. The firewall is a separate,
- * friction-free feature from the disable/enable blocker.
+ * ON = allowed, OFF = blocked. Needs [canToggle] — the backend running *and* the master switch
+ * enforcing, because a per-app rule does nothing while Chain 3 is off.
  */
 @Composable
 fun FirewallRow(
@@ -38,7 +35,8 @@ fun FirewallRow(
     onToggleBlocked: () -> Unit,
     modifier: Modifier = Modifier,
     isPinned: Boolean = false,
-    onTogglePin: (() -> Unit)? = null
+    onTogglePin: (() -> Unit)? = null,
+    reorderGripModifier: Modifier? = null
 ) {
     Row(
         modifier = modifier
@@ -53,6 +51,12 @@ fun FirewallRow(
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.weight(1f)
         )
+        if (reorderGripModifier != null) {
+            ReorderGrip(
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = reorderGripModifier
+            )
+        }
         if (onTogglePin != null) {
             IconButton(onClick = onTogglePin) {
                 Icon(
@@ -62,6 +66,7 @@ fun FirewallRow(
                 )
             }
         }
+        Spacer(modifier = Modifier.width(8.dp))
         Switch(
             checked = !isBlocked,
             onCheckedChange = { onToggleBlocked() },

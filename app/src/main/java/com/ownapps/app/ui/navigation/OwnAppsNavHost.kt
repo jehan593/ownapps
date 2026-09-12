@@ -14,10 +14,6 @@ import com.ownapps.app.ui.firewall.FirewallScreen
 import com.ownapps.app.ui.settings.SettingsScreen
 import com.ownapps.app.ui.settings.UiHiderScreen
 
-/** Intent extra set on the launching Intent to make the app open straight on the All Apps list.
- *  (Used by the "Pin All-apps shortcut" launcher shortcut.) */
-const val EXTRA_OPEN_ALL_APPS = "com.ownapps.app.OPEN_ALL_APPS"
-
 object Routes {
     const val APP_LIST = "app_list"
     const val SETTINGS = "settings"
@@ -25,11 +21,8 @@ object Routes {
     const val FIREWALL = "firewall"
 }
 
-// Navigation-compose defaults every destination to EnterTransition.None/ExitTransition.None
-// when nothing is set here, which (a) reads as an abrupt cut between screens and (b) is a known
-// source of the outgoing screen's first post-pop tap landing on the wrong composable frame.
-// Setting real transitions once at the NavHost level (applies to every composable() in the
-// graph) fixes both.
+// Navigation-compose defaults to an abrupt cut between screens (and a known source of misplaced
+// post-pop taps). Set real transitions once so every destination slides and fades.
 private const val NAV_TRANSITION_MILLIS = 300
 
 @Composable

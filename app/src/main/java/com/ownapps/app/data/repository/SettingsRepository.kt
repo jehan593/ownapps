@@ -11,6 +11,7 @@ import com.ownapps.app.uihider.UiHiderScript
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Plain DataStore Preferences — no encryption.
@@ -31,6 +32,11 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
     }
 
     private val gson = Gson()
+
+    /** In-memory mirror of [FIREWALL_ENABLED] so the Firewall screen can render the master switch
+     *  at its real position from the very first frame instead of waiting on an async DataStore
+     *  read. Seeded via [preloadFirewallState] and kept in step by every write. */
+    private val cachedFirewallEnabled = AtomicBoolean(false)
 
     val uiHiderEnabledFlow: Flow<Boolean> =
         dataStore.data.map { it[UI_HIDER_ENABLED] ?: false }
@@ -54,7 +60,17 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
      *  the live platform state after a reboot, where Android has silently reset Chain 3 to off. */
     suspend fun isFirewallEnabled(): Boolean = dataStore.data.first()[FIREWALL_ENABLED] ?: false
 
+    /** Seeds [firewallEnabledCached] from disk. Called by the Firewall ViewModel up front so a
+     *  fresh screen still renders the correct switch position on its very first frame. */
+    suspend fun preloadFirewallState() {
+        cachedFirewallEnabled.set(isFirewallEnabled())
+    }
+
+    /** Synchronous read of the last known persisted firewall state, for the first rendered frame. */
+    fun firewallEnabledCached(): Boolean = cachedFirewallEnabled.get()
+
     suspend fun setFirewallEnabled(enabled: Boolean) {
+        cachedFirewallEnabled.set(enabled)
         dataStore.edit { it[FIREWALL_ENABLED] = enabled }
     }
 

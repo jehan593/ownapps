@@ -115,6 +115,13 @@ fun UiHiderScreen(onBack: () -> Unit) {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
+                },
+                actions = {
+                    Switch(
+                        checked = uiState.isActive,
+                        onCheckedChange = { viewModel.setActive(it) },
+                        modifier = Modifier.padding(end = 12.dp)
+                    )
                 }
             )
         }
@@ -126,28 +133,15 @@ fun UiHiderScreen(onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState())
                 .padding(16.dp)
         ) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text("Hide distracting UI", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "Hide annoying buttons and pop-ups in your apps.",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                        Switch(
-                            checked = uiState.isActive,
-                            onCheckedChange = { viewModel.setActive(it) }
-                        )
-                    }
-                    if (uiState.isActive && !uiState.serviceEnabled) {
-                        Spacer(Modifier.height(8.dp))
+            if (uiState.isActive && !uiState.serviceEnabled) {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             "Enable the accessibility service to make overlays work.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error
                         )
+                        Spacer(Modifier.height(8.dp))
                         OutlinedButton(
                             onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
                             modifier = Modifier.fillMaxWidth()

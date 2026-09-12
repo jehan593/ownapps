@@ -12,7 +12,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.ownapps.app.ui.navigation.OwnAppsNavHost
-import com.ownapps.app.ui.navigation.Routes
 import com.ownapps.app.ui.theme.OwnAppsTheme
 
 class MainActivity : ComponentActivity() {
@@ -32,7 +31,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             OwnAppsTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    OwnAppsNavHost(startDestination = Routes.APP_LIST)
+                    OwnAppsNavHost()
                 }
             }
         }

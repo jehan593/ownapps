@@ -2,7 +2,9 @@ package com.ownapps.app.ui.settings
 
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,14 +12,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -64,6 +67,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshShizukuState()
                 viewModel.refreshUiHiderServiceState()
+                viewModel.refreshBatteryState()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -91,7 +95,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         ) {
             PermissionCard(
                 title = "Shizuku",
-                description = "Privileged backend used to disable apps and run the firewall.",
+                description = "Required to disable apps and run the firewall.",
                 granted = uiState.shizukuReady,
                 action = {
                     when {
@@ -105,7 +109,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(gap)
 
             PermissionCard(
                 title = "Accessibility",
@@ -125,9 +129,56 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
 
             Spacer(gap)
-            HorizontalDivider()
+
+            SettingsCard {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { viewModel.requestBatteryOptimizationExemption() },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Battery optimization", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = if (uiState.batteryOptimizationExempt) {
+                                "Exempt — OwnApps keeps working in the background."
+                            } else {
+                                "Optimized — the system may stop OwnApps in the background."
+                            },
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    if (uiState.batteryOptimizationExempt) {
+                        Icon(
+                            Icons.Filled.CheckCircle,
+                            contentDescription = "Exempt",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Button(onClick = { viewModel.requestBatteryOptimizationExemption() }) {
+                            Text("Ignore")
+                        }
+                    }
+                }
+            }
+
             Spacer(gap)
         }
+    }
+}
+
+/** Shared card container for every Settings section — same rounded corners and surface background
+ *  as the app-row cards in the All Apps list. */
+@Composable
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column(modifier = Modifier.padding(12.dp), content = content)
     }
 }
 
@@ -138,31 +189,29 @@ private fun PermissionCard(
     granted: Boolean,
     action: @Composable () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleSmall)
-                    Text(
-                        text = description,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                if (granted) {
-                    Icon(
-                        Icons.Filled.CheckCircle,
-                        contentDescription = "Granted",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
+    SettingsCard {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
-            if (!granted) {
-                Spacer(Modifier.height(8.dp))
-                action()
+            if (granted) {
+                Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = "Granted",
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
+        }
+        if (!granted) {
+            Spacer(Modifier.height(8.dp))
+            action()
         }
     }
 }

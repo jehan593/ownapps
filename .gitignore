@@ -15,3 +15,7 @@
 *.keystore
 !/app/debug.keystore
 keystore.properties
+
+# Session work files — never commit these
+prompt.md
+cleanup.md 
