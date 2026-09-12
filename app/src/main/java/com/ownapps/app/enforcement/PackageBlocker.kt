@@ -35,4 +35,13 @@ class PackageBlocker(
     /** Whether disabling is currently possible (backend alive + permission granted). Enabling is
      *  always allowed so a stale local "disabled" flag can always be cleared. */
     fun canDisable(): Boolean = packageController.isAvailable()
+
+    /** Whether Shizuku is ready to use. */
+    fun isServiceReady(): Boolean = packageController.isServiceReady()
+
+    /** Whether OwnApps can use Shizuku. */
+    fun isPermissionGranted(): Boolean = packageController.isPermissionGranted()
+
+    /** Requests Shizuku permission. */
+    fun requestPermission() = packageController.requestPermission()
 }

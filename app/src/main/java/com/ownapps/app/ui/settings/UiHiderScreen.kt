@@ -1,8 +1,14 @@
 package com.ownapps.app.ui.settings
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
@@ -28,14 +35,16 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.GpsFixed
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -64,6 +73,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.ownapps.app.ui.components.SecondaryActionButton
 import com.ownapps.app.ui.rememberAppContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +90,24 @@ fun UiHiderScreen(onBack: () -> Unit) {
     )
     val uiState by viewModel.uiState.collectAsState()
 
+    // The picker needs a notification so it can stay available over another app.
+    val requestNotificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) viewModel.launchNodePicker()
+    }
+
+    fun startNodePicker() {
+        when {
+            Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU -> viewModel.launchNodePicker()
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED -> viewModel.launchNodePicker()
+            else -> requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -89,9 +117,8 @@ fun UiHiderScreen(onBack: () -> Unit) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // When the Node Picker hands back a selector (to the clipboard), the user pastes it into a
-    // new script's find(...) call; there is nothing to pre-fill here.
     var editorState by remember { mutableStateOf<ScriptEditorState?>(null) }
+    var pendingDelete by remember { mutableStateOf<UiHiderScriptItem?>(null) }
 
     if (editorState != null) {
         val state = editorState!!
@@ -120,7 +147,7 @@ fun UiHiderScreen(onBack: () -> Unit) {
                     Switch(
                         checked = uiState.isActive,
                         onCheckedChange = { viewModel.setActive(it) },
-                        modifier = Modifier.padding(end = 12.dp)
+                        modifier = Modifier.padding(end = 20.dp)
                     )
                 }
             )
@@ -134,7 +161,12 @@ fun UiHiderScreen(onBack: () -> Unit) {
                 .padding(16.dp)
         ) {
             if (uiState.isActive && !uiState.serviceEnabled) {
-                Card(modifier = Modifier.fillMaxWidth()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
                             "Enable the accessibility service to make overlays work.",
@@ -142,7 +174,7 @@ fun UiHiderScreen(onBack: () -> Unit) {
                             color = MaterialTheme.colorScheme.error
                         )
                         Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
+                        Button(
                             onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
                             modifier = Modifier.fillMaxWidth()
                         ) { Text("Open accessibility settings") }
@@ -152,13 +184,14 @@ fun UiHiderScreen(onBack: () -> Unit) {
 
             Spacer(Modifier.height(12.dp))
 
-            OutlinedButton(
-                onClick = { viewModel.launchNodePicker() },
-                modifier = Modifier.fillMaxWidth()
+            SecondaryActionButton(
+                onClick = ::startNodePicker,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = uiState.serviceEnabled
             ) {
                 Icon(Icons.Filled.GpsFixed, contentDescription = null)
-                Spacer(Modifier.height(0.dp))
-                Text(if (uiState.serviceEnabled) "Pick an element with the Node Picker" else "Enable service to use the Node Picker")
+                Spacer(Modifier.width(8.dp))
+                Text("Pick an element with the Node Picker")
             }
 
             Spacer(Modifier.height(12.dp))
@@ -183,11 +216,36 @@ fun UiHiderScreen(onBack: () -> Unit) {
                     script = script,
                     onToggleEnabled = { enabled -> viewModel.toggleCustomScript(script.id, enabled) },
                     onEdit = { editorState = scriptEditorState(script) },
-                    onDelete = { viewModel.deleteCustomScript(script.id) }
+                    onDelete = { pendingDelete = script }
                 )
                 Spacer(Modifier.height(6.dp))
             }
         }
+    }
+
+    pendingDelete?.let { script ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete script?") },
+            text = { Text("${script.label} will be removed.") },
+            shape = RoundedCornerShape(12.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            confirmButton = {
+                Button(
+                    onClick = {
+                        pendingDelete = null
+                        viewModel.deleteCustomScript(script.id)
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError
+                    )
+                ) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
+            }
+        )
     }
 }
 
@@ -213,7 +271,12 @@ private fun ScriptRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -232,7 +295,11 @@ private fun ScriptRow(
                 Icon(Icons.Filled.Edit, contentDescription = "Edit")
             }
             IconButton(onClick = onDelete) {
-                Icon(Icons.Filled.Delete, contentDescription = "Delete")
+                Icon(
+                    Icons.Filled.Delete,
+                    contentDescription = "Delete",
+                    tint = MaterialTheme.colorScheme.error
+                )
             }
             Switch(
                 checked = script.isEnabled,
@@ -267,7 +334,7 @@ private fun ScriptEditorScreen(
                     }
                 },
                 actions = {
-                    TextButton(
+                    Button(
                         onClick = {
                             val validationError = validate(sourceValue.text)
                             if (validationError != null) {
@@ -277,7 +344,8 @@ private fun ScriptEditorScreen(
                             } else {
                                 onSave(packageName, label, sourceValue.text)
                             }
-                        }
+                        },
+                        modifier = Modifier.padding(end = 12.dp)
                     ) { Text("Save") }
                 }
             )
@@ -293,7 +361,7 @@ private fun ScriptEditorScreen(
             OutlinedTextField(
                 value = packageName,
                 onValueChange = { packageName = it },
-                label = { Text("App package (e.g. com.whatsapp)") },
+                label = { Text("App package", maxLines = 1) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -302,7 +370,7 @@ private fun ScriptEditorScreen(
             OutlinedTextField(
                 value = label,
                 onValueChange = { label = it },
-                label = { Text("Label") },
+                label = { Text("Label", maxLines = 1) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()

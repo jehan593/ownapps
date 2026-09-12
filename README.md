@@ -30,6 +30,30 @@ Browsing the list works without Shizuku; disabling and the firewall need it.
 Tap the **UI Hider** icon (a crossed-out eye) in the top bar of the app list, then turn on the
 accessibility service when Android asks. OwnApps can't enable it for you.
 
+### Create a hiding rule with the Node Picker
+
+1. In OwnApps → **UI Hider**, tap **Pick an element with the Node Picker**. Open the app you
+   want to change, then tap the **Node Picker active** notification.
+
+2. Tap the element you want to hide. It is highlighted.
+
+3. Tap **Copy** to copy a selector such as `id:com.whatsapp:id/status_list`.
+
+4. In **UI Hider**, create a script for that app and paste the selector:
+
+   ```
+   if app != "com.whatsapp" {
+       return
+   }
+   el = find(id="com.whatsapp:id/status_list")
+   if el != null {
+       hide(el)
+   }
+   ```
+
+   `find` also supports `text=`, `desc=`, and `path=`. Turn on the script to hide the element
+   while the app is open.
+
 ## Build
 
 Requires JDK 17 and the Android SDK.

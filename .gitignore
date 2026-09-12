@@ -18,4 +18,5 @@ keystore.properties
 
 # Session work files — never commit these
 prompt.md
-cleanup.md 
+cleanup.md
+design.md
