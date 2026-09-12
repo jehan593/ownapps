@@ -41,6 +41,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.ownapps.app.ui.components.SecondaryActionButton
 import com.ownapps.app.ui.rememberAppContainer
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -102,7 +103,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                         !uiState.shizukuServiceReady ->
                             Text("Shizuku isn't running. Install and start it to enable app control.")
                         !uiState.shizukuPermissionGranted ->
-                            Button(onClick = { viewModel.requestShizukuPermission() }) {
+                            Button(
+                                onClick = { viewModel.requestShizukuPermission() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
                                 Text("Grant Shizuku permission")
                             }
                     }
@@ -120,7 +124,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                         Button(
                             onClick = {
                                 context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                            }
+                            },
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Turn on accessibility")
                         }
@@ -154,10 +159,15 @@ fun SettingsScreen(onBack: () -> Unit) {
                             contentDescription = "Exempt",
                             tint = MaterialTheme.colorScheme.primary
                         )
-                    } else {
-                        Button(onClick = { viewModel.requestBatteryOptimizationExemption() }) {
-                            Text("Ignore")
-                        }
+                    }
+                }
+                if (!uiState.batteryOptimizationExempt) {
+                    Spacer(Modifier.height(8.dp))
+                    SecondaryActionButton(
+                        onClick = { viewModel.requestBatteryOptimizationExemption() },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Ignore")
                     }
                 }
             }

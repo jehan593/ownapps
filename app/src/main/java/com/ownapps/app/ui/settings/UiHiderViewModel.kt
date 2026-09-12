@@ -1,7 +1,5 @@
 package com.ownapps.app.ui.settings
 
-import android.content.Intent
-import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ownapps.app.data.repository.SettingsRepository
@@ -132,12 +130,7 @@ class UiHiderViewModel(
     }
 
     fun launchNodePicker() {
-        if (!_uiState.value.serviceEnabled) {
-            appContext.startActivity(
-                Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-            )
-            return
-        }
+        if (!_uiState.value.serviceEnabled) return
         NodePickerService.start(appContext)
     }
 

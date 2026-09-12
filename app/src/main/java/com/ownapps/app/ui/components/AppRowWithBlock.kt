@@ -2,6 +2,7 @@ package com.ownapps.app.ui.components
 
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -23,9 +25,8 @@ import androidx.compose.ui.unit.dp
 /**
  * One app row for the All Apps list. Left: icon + label, right: an enable/disable [Switch].
  *
- * Tapping the row opens the app via [onOpen]; for a disabled row the caller confirms first (see
- * AppListScreen). Disabling needs [canDisable] (backend running and authorized); enabling is
- * always allowed.
+ * Tapping the row opens the app via [onOpen]. The caller confirms before opening a disabled app.
+ * Disabling needs [canDisable]; enabling is always allowed.
  */
 @Composable
 fun AppRowWithBlock(
@@ -40,10 +41,11 @@ fun AppRowWithBlock(
     onTogglePin: (() -> Unit)? = null,
     reorderGripModifier: Modifier? = null
 ) {
+    val noIndication = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onOpen() }
+            .clickable(interactionSource = noIndication, indication = null) { onOpen() }
             .padding(vertical = 10.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

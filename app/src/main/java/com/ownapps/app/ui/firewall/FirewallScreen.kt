@@ -18,6 +18,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,7 +27,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -169,7 +169,7 @@ fun FirewallScreen(onBack: () -> Unit) {
                         checked = uiState.firewallEnabled,
                         onCheckedChange = { viewModel.setFirewallEnabled(it) },
                         enabled = uiState.canControl && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
-                        modifier = Modifier.padding(end = 12.dp)
+                        modifier = Modifier.padding(end = 32.dp)
                     )
                 }
             )
@@ -200,25 +200,36 @@ fun FirewallScreen(onBack: () -> Unit) {
                 )
             } else if (uiState.checkedBackend && !uiState.canControl) {
                 Spacer(Modifier.height(8.dp))
-                Text(
-                    text = when {
-                        !uiState.isServiceReady ->
-                            "Firewall needs Shizuku (or a compatible backend like Sui) running."
-                        !uiState.isPermissionGranted ->
-                            "Shizuku is running, but permission isn't granted."
-                        else -> "The firewall backend is unavailable."
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                if (uiState.isServiceReady && !uiState.isPermissionGranted) {
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { viewModel.requestPermission() },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
-                    ) {
-                        Text("Grant Shizuku permission")
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            text = when {
+                                !uiState.isServiceReady ->
+                                    "Start Shizuku to use the firewall."
+                                !uiState.isPermissionGranted ->
+                                    "Grant Shizuku permission to use the firewall."
+                                else -> "Firewall is unavailable."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        if (uiState.isServiceReady && !uiState.isPermissionGranted) {
+                            Spacer(Modifier.height(8.dp))
+                            Button(
+                                onClick = { viewModel.requestPermission() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Grant Shizuku permission")
+                            }
+                        }
                     }
                 }
             }

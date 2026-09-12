@@ -9,9 +9,9 @@
     <string name="node_picker_deeper">▼ Deeper</string>
     <string name="node_picker_move">Move</string>
     <string name="node_picker_info">Info</string>
-    <string name="node_picker_copy">Use as rule</string>
+    <string name="node_picker_copy">Copy</string>
     <string name="node_picker_close">Close</string>
-    <string name="node_picker_hint">Tap any element to select it, then \'Use as rule\'.</string>
+    <string name="node_picker_hint">Tap any element to select it, then \'Copy\'.</string>
     <string name="node_picker_no_children">No child elements.</string>
     <string name="node_picker_copied">Selector copied to clipboard.</string>
     <string name="node_picker_channel_name">Node Picker</string>

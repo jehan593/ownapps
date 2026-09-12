@@ -3,8 +3,10 @@ package com.ownapps.app.ui.applist
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,6 +17,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -196,6 +199,34 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit, onOpen
             modifier = Modifier.fillMaxSize().padding(padding)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
+            if (uiState.permissionNeeded) {
+                Spacer(Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(
+                            "Grant Shizuku permission to manage apps.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Button(
+                            onClick = { viewModel.requestPermission() },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text("Grant Shizuku permission")
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+            }
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
@@ -349,8 +380,10 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit, onOpen
             onDismissRequest = { pendingOpen = null },
             title = { Text("Enable and open?") },
             text = { Text("${app?.label ?: packageName} is disabled.") },
+            shape = RoundedCornerShape(12.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
             confirmButton = {
-                TextButton(
+                Button(
                     onClick = {
                         pendingOpen = null
                         scope.launch {

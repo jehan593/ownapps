@@ -26,6 +26,7 @@ data class AppListUiState(
     val apps: List<AppListRow> = emptyList(),
     val pinnedOrder: List<String> = emptyList(),
     val canDisable: Boolean = false,
+    val permissionNeeded: Boolean = false,
     val isLoading: Boolean = true
 )
 
@@ -106,6 +107,7 @@ class AppListViewModel(
             },
             pinnedOrder = pinnedOrder,
             canDisable = packageBlocker.canDisable(),
+            permissionNeeded = packageBlocker.isServiceReady() && !packageBlocker.isPermissionGranted(),
             isLoading = false
         )
     }
@@ -120,6 +122,10 @@ class AppListViewModel(
         viewModelScope.launch {
             packageBlocker.enable(packageName)
         }
+    }
+
+    fun requestPermission() {
+        packageBlocker.requestPermission()
     }
 
     fun togglePin(packageName: String) {
