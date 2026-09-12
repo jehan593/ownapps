@@ -1,11 +1,11 @@
 # Manual "ship a release" workflow: builds the R8-minified release APK (using the
 # same committed debug.keystore as the debug build, so every build — local or CI —
 # carries the same signature), names a versioned human-readable copy alongside the
-# app-release.apk, and files them as a GitHub Release. The version is chosen when
-# you run the workflow (default 1.0.0); versionCode is derived from it by stripping
-# the dots (1.0.0 -> 100), so update checkers keying off versionCode still see each
-# new semantic version as a fresh build. Run it against the release commit and it
-# tags a GitHub Release like v1.0.0.
+# app-release.apk, and files them as a GitHub Release. Run it from the Actions tab,
+# or with `gh workflow run build-apk.yml -f version=2.0.0`; leave the version blank
+# to auto-bump the patch from the latest release (1.0.0 -> 1.0.1). versionCode is
+# derived from the version by stripping the dots (1.0.0 -> 100), so update checkers
+# keying off it still see each new semantic version as a fresh build.
 
 name: Build APK
 
@@ -13,9 +13,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to tag/release (e.g. 1.0.0). Produces tag "v<version>".'
+        description: "Version to release (e.g. 2.0.0). Leave blank to auto-bump the patch."
         required: false
-        default: '1.0.0'
         type: string
 
 permissions:
@@ -40,18 +39,36 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      # Blank input auto-bumps the patch from the latest release tag, so the usual run needs no
+      # typing; pass a version (e.g. 2.0.0) only when you want to jump major/minor.
+      - name: Resolve version
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -n "${{ inputs.version }}" ]; then
+            version="${{ inputs.version }}"
+          else
+            latest=$(gh release list --limit 1 --json tagName --jq '.[0].tagName' 2>/dev/null || true)
+            if [ -z "$latest" ]; then
+              version="1.0.0"
+            else
+              latest="${latest#v}"
+              major=$(echo "$latest" | cut -d. -f1)
+              minor=$(echo "$latest" | cut -d. -f2)
+              patch=$(echo "$latest" | cut -d. -f3)
+              version="$major.$minor.$((patch + 1))"
+            fi
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "code=$(echo "$version" | tr -d '.')" >> "$GITHUB_OUTPUT"
+          echo "Resolved release version: $version"
+
       # versionCode = dotted version with the dots removed (1.0.0 -> 100). Update checkers
       # (Obtainium, Android) key off versionCode and need it to strictly increase; stripping dots
       # does that across ascending semantic versions.
-      - name: Compute versionCode
-        id: ver
-        run: echo "code=$(echo '${{ inputs.version }}' | tr -d '.')" >> "$GITHUB_OUTPUT"
-
-      # Release (not debug) is what's shipped — it's R8-minified and resource-shrunk, and reuses
-      # the same pinned debug.keystore signing key (see app/build.gradle.kts) so in-place updates
-      # still work.
       - name: Build release APK
-        run: ./gradlew assembleRelease -PappVersionCode=${{ steps.ver.outputs.code }} -PappVersionName=${{ inputs.version }}
+        run: ./gradlew assembleRelease -PappVersionCode=${{ steps.version.outputs.code }} -PappVersionName=${{ steps.version.outputs.version }}
 
       # A second, human-readable copy of the same APK alongside the original app-release.apk —
       # not a replacement. Keeping app-release.apk's name unchanged is what lets
@@ -59,7 +76,7 @@ jobs:
       # resolves to the newest build (bookmark/QR code/Obtainium-friendly); the versioned copy is
       # for humans browsing the release page who want the version visible in the filename itself.
       - name: Add versioned copy of the APK
-        run: cp app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/OwnApps-${{ inputs.version }}.apk"
+        run: cp app/build/outputs/apk/release/app-release.apk "app/build/outputs/apk/release/OwnApps-${{ steps.version.outputs.version }}.apk"
 
       # Downloadable from the Actions tab for this specific run (kept for ~90 days).
       - name: Upload build artifact
@@ -68,7 +85,7 @@ jobs:
           name: ownapps-release-apk
           path: |
             app/build/outputs/apk/release/app-release.apk
-            app/build/outputs/apk/release/OwnApps-${{ inputs.version }}.apk
+            app/build/outputs/apk/release/OwnApps-${{ steps.version.outputs.version }}.apk
 
       # Release body lists the title of every commit since the last release tag (falling back to
       # the full history if this is the first release), so release notes describe everything that
@@ -92,8 +109,8 @@ jobs:
       - name: Publish release
         uses: ncipollo/release-action@v1
         with:
-          tag: v${{ inputs.version }}
-          name: v${{ inputs.version }}
+          tag: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
           body: ${{ steps.commit_message.outputs.message }}
-          artifacts: "app/build/outputs/apk/release/app-release.apk,app/build/outputs/apk/release/OwnApps-${{ inputs.version }}.apk"
+          artifacts: "app/build/outputs/apk/release/app-release.apk,app/build/outputs/apk/release/OwnApps-${{ steps.version.outputs.version }}.apk"
           prerelease: false
