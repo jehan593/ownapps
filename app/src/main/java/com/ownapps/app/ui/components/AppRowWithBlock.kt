@@ -21,13 +21,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
- * One app row for any list (the All Apps list). Left: icon + label. Right: an enable/disable
- * [Switch].
+ * One app row for the All Apps list. Left: icon + label, right: an enable/disable [Switch].
  *
- * Tapping the row opens the app via [onOpen]; if the app is currently disabled the row first
- * enables it (via [onToggleEnabled] with the pre-enabled state) before opening. Turning the
- * switch on enables, turning it off disables. Disabling needs [canDisable] (a privileged backend
- * is running and authorized); enabling is always allowed.
+ * Tapping the row opens the app via [onOpen]; for a disabled row the caller confirms first (see
+ * AppListScreen). Disabling needs [canDisable] (backend running and authorized); enabling is
+ * always allowed.
  */
 @Composable
 fun AppRowWithBlock(
@@ -39,17 +37,13 @@ fun AppRowWithBlock(
     onOpen: () -> Unit,
     modifier: Modifier = Modifier,
     isPinned: Boolean = false,
-    onTogglePin: (() -> Unit)? = null
+    onTogglePin: (() -> Unit)? = null,
+    reorderGripModifier: Modifier? = null
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable {
-                if (isDisabled) {
-                    onToggleEnabled()
-                }
-                onOpen()
-            }
+            .clickable { onOpen() }
             .padding(vertical = 10.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -60,6 +54,12 @@ fun AppRowWithBlock(
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.weight(1f)
         )
+        if (reorderGripModifier != null) {
+            ReorderGrip(
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                modifier = reorderGripModifier
+            )
+        }
         if (onTogglePin != null) {
             IconButton(onClick = onTogglePin) {
                 Icon(
@@ -68,9 +68,9 @@ fun AppRowWithBlock(
                 )
             }
         }
-        // Enabled/previously-enabled state: ON = enabled, OFF = disabled. Turning the switch off
-        // (disable) is friction-free but needs the privileged backend; turning it on (enable) is
-        // always allowed.
+        // ON = enabled, OFF = disabled. Disabling needs the privileged backend; enabling is always
+        // allowed.
+        Spacer(modifier = Modifier.width(8.dp))
         Switch(
             checked = !isDisabled,
             onCheckedChange = { onToggleEnabled() },

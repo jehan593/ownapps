@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- A Nord toggle switch, the launcher face of an app manager: the ON track uses the theme's
-     primary frost accent (nord8 #88C0D0), the knob is snow white (nord6 #ECEFF4) and carries the
+     primary frost accent (nord9 #81A1C1), the knob is snow white (nord6 #ECEFF4) and carries the
      old 2x2 app-mark grid in polar night (nord0 #2E3440) so the brand carries over. Sits within
      the ~66dp adaptive-icon safe zone of the 108dp viewport. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
@@ -9,7 +9,7 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     <path
-        android:fillColor="#88C0D0"
+        android:fillColor="#81A1C1"
         android:pathData="M26,54 a14,14 0 0 1 14,-14 h28 a14,14 0 0 1 14,14 a14,14 0 0 1 -14,14 h-28 a14,14 0 0 1 -14,-14 z" />
     <path
         android:fillColor="#BF2E3440"

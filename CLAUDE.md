@@ -5,10 +5,9 @@ Guidance for working on the OwnApps Android app. Read this before editing non-tr
 ## What this is
 
 A fully **offline** Android **app manager** with **manual** app disabling. Nord color palette,
-Martian Mono Nerd Font, Jetpack Compose UI, plus a home-screen launcher shortcut. It requests **no
-`INTERNET`** permission and **no `PACKAGE_USAGE_STATS`** — there is no screen-time tracking,
-dashboard, history, or widgets; the app is purely a deliberate way to disable/enable apps you
-don't want to reach for.
+Martian Mono Nerd Font, Jetpack Compose UI. It requests **no `INTERNET`** permission and **no
+`PACKAGE_USAGE_STATS`** — there is no screen-time tracking, dashboard, history, or widgets; the
+app is purely a deliberate way to disable/enable apps you don't want to reach for.
 
 ## Key architecture
 
@@ -69,9 +68,6 @@ AppComponent wiring is in `di/AppContainer.kt` (manual DI, no Hilt).
 - **Pinned apps** (`data/db/entity/PinnedAppEntity.kt`, `data/repository/PinnedAppsRepository.kt`,
   `data/db/dao/PinnedAppDao.kt`): apps the user pins to the top of the All Apps list. The list also
   offers **Disable All Pinned** / **Enable All Pinned** actions.
-- **Home-screen launcher shortcut** (`shortcuts/AllAppsShortcutActivity.kt`): a `Theme.NoDisplay`
-  activity with an `ACTION_CREATE_SHORTCUT` intent-filter (not an AppWidget). Tapping the pinned
-  icon launches OwnApps directly onto the All Apps list via `EXTRA_OPEN_ALL_APPS`.
 - **UI Hider** (`uihider/`, opt-in accessibility feature): a scriptable overlay that hides
   distracting UI elements in chosen apps. `UiHiderService` (the accessibility service) reads the
   active window and runs per-package scripts through a tiny interpreted language
@@ -86,12 +82,14 @@ AppComponent wiring is in `di/AppContainer.kt` (manual DI, no Hilt).
   nodes. Entry point is the
   **UI Hider icon (visibility-off) in the All Apps top bar**, next to the Firewall shield.
 
-- **Settings** (`ui/settings/SettingsScreen.kt` + `SettingsViewModel.kt`) is now just a
-  permissions panel: a **Shizuku** card (shows granted when the backend is up and authorized,
-  otherwise a "Grant Shizuku permission" button, or a hint that Shizuku isn't running) and an
-  **Accessibility** card (shows granted when the `UiHiderService` is enabled, otherwise a
-  "Turn on accessibility" button that opens the system accessibility settings). No UI Hider
-  scripts/toggle live here anymore.
+- **Settings** (`ui/settings/SettingsScreen.kt` + `SettingsViewModel.kt`) is a permissions and
+  device-optimization panel: a **Shizuku** card (shows granted when the backend is up and
+  authorized, otherwise a "Grant Shizuku permission" button, or a hint that Shizuku isn't running),
+  an **Accessibility** card (shows granted when the `UiHiderService` is enabled, otherwise a
+  "Turn on accessibility" button that opens the system accessibility settings), and a **Battery
+  optimization** card (requests an exemption via `ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS`,
+  falling back to the battery settings page; status refreshes on resume). No UI Hider scripts or
+  toggle live here anymore.
 
 ## Data / storage
 
@@ -108,8 +106,7 @@ AppComponent wiring is in `di/AppContainer.kt` (manual DI, no Hilt).
 
 - Jetpack Compose + Material 3. Navigation via `ui/navigation/OwnAppsNavHost.kt` (Compose
   Navigation). The **All Apps list is the start destination**; Settings is reached from a gear
-  icon in its top bar (Firewall sits beside it, a shield icon). `EXTRA_OPEN_ALL_APPS` drives the
-  launcher-shortcut deep-link.
+  icon in its top bar (Firewall sits beside it, a shield icon).
 - Screens under `ui/` (applist, settings, uihider, firewall). `AppRowWithBlock` and `FirewallRow`
   are the shared app rows.
 - Theme in `ui/theme/` (Nord palette). Martian Mono Nerd Font.

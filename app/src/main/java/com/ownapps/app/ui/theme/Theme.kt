@@ -6,11 +6,11 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
-// Nord is fundamentally a dark, arctic-bluish palette; dynamic color is deliberately disabled so
-// the app keeps a fixed Nord identity regardless of the device wallpaper.
+// Nord is fundamentally a dark, arctic-bluish palette. Both schemes share the #81A1C1 frost accent
+// as primary so every toggle and button renders with the same accent color regardless of dark mode.
 
 private val NordDarkColorScheme = darkColorScheme(
-    primary = nord8,
+    primary = nord9,
     onPrimary = nord0,
     primaryContainer = nord10,
     onPrimaryContainer = nord6,
@@ -30,9 +30,9 @@ private val NordDarkColorScheme = darkColorScheme(
 )
 
 private val NordLightColorScheme = lightColorScheme(
-    primary = nord10,
-    onPrimary = nord6,
-    primaryContainer = nord8,
+    primary = nord9,
+    onPrimary = nord0,
+    primaryContainer = nord9,
     onPrimaryContainer = nord0,
     secondary = nord7,
     onSecondary = nord0,

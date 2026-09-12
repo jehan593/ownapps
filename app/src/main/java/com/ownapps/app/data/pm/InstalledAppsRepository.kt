@@ -12,12 +12,14 @@ import kotlinx.coroutines.withContext
 data class LaunchableApp(
     val packageName: String,
     val label: String,
-    val icon: Drawable
+    val icon: Drawable,
+    /** Actual on-device enabled state (reflects external disable/enable, not just OwnApps). */
+    val isEnabled: Boolean
 )
 
 /**
- * Caches the installed-app list, which is expensive to build (PackageManager query + icon per
- * app) and rarely changes. A short TTL plus invalidation on package add/remove keeps callers fast.
+ * Caches the installed-app list: the PackageManager query + per-app icon load is expensive and the
+ * list rarely changes. A short TTL plus invalidation on package add/remove keeps callers fast.
  *
  * The list is the *launchable* set (apps with a launcher activity).
  */
@@ -64,12 +66,25 @@ class InstalledAppsRepository(private val packageManager: PackageManager, privat
                 LaunchableApp(
                     packageName = appInfo.packageName,
                     label = appInfo.loadLabel(packageManager).toString(),
-                    icon = appInfo.loadIcon(packageManager)
+                    icon = appInfo.loadIcon(packageManager),
+                    isEnabled = appInfo.effectiveEnabled(packageManager)
                 )
             }
             .sortedBy { it.label.lowercase() }
             .toList()
     }
+
+    private fun ApplicationInfo.effectiveEnabled(packageManager: PackageManager): Boolean =
+        when (runCatching { packageManager.getApplicationEnabledSetting(packageName) }
+            .getOrDefault(PackageManager.COMPONENT_ENABLED_STATE_DEFAULT)) {
+            PackageManager.COMPONENT_ENABLED_STATE_ENABLED -> true
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED_USER,
+            PackageManager.COMPONENT_ENABLED_STATE_DISABLED_UNTIL_USED -> false
+            // COMPONENT_ENABLED_STATE_DEFAULT — never touched explicitly; follow the manifest's
+            // android:enabled attribute.
+            else -> enabled
+        }
 
     companion object {
         private const val CACHE_TTL_MILLIS = 5 * 60 * 1000L

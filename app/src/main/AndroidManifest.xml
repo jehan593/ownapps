@@ -8,6 +8,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- Lets the firewall re-apply its Chain 3 rules after a reboot (Android clears them). -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- Lets Settings exempt OwnApps from battery optimization (ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS). -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Deliberately no INTERNET permission: OwnApps is fully offline.
          Deliberately no QUERY_ALL_PACKAGES: scoped visibility below is sufficient. -->
@@ -48,22 +50,6 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-
-        <!-- Home-screen launcher shortcut (not an AppWidget) — see AllAppsShortcutActivity's
-             class doc. Theme.NoDisplay + exported so the launcher's widget/shortcut picker can
-             both create the pinned icon (CREATE_SHORTCUT) and, later, invoke it (ACTION_VIEW via
-             the pinned icon's own stored intent) without this activity ever drawing a frame. -->
-        <activity
-            android:name=".shortcuts.AllAppsShortcutActivity"
-            android:exported="true"
-            android:excludeFromRecents="true"
-            android:label="@string/all_apps_shortcut_label"
-            android:theme="@android:style/Theme.NoDisplay">
-            <intent-filter>
-                <action android:name="android.intent.action.CREATE_SHORTCUT" />
-                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 

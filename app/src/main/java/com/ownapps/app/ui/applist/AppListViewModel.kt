@@ -50,8 +50,6 @@ class AppListViewModel(
     init {
         viewModelScope.launch {
             // Combine the two flows into one snapshot so a switch never shows stale toggle state.
-            // The first emission waits for both plus the app list (see maybeEmit), so switches
-            // don't flash "enabled" and snap into place once Room's first reading arrives.
             combine(
                 suspendStateRepository.observeAllSuspended(),
                 pinnedAppsRepository.observePinned()
@@ -65,23 +63,30 @@ class AppListViewModel(
         }
     }
 
-    /**
-     * Reloads the app list. Called when the screen opens; the list is served from a short-lived
-     * cache so re-opening stays instant, and drop the cache only on package add/remove.
-     */
+    /** Reloads the app list, served from a short-lived cache so re-opening stays instant. */
     suspend fun refresh() {
-        // Stale-while-revalidate: show the last snapshot immediately if we have one, so a refresh
-        // never flashes back to a spinner.
+        // Show the last snapshot immediately if available so a refresh never flashes a spinner.
         if (appsCache.isNotEmpty() && statesReady) emitState()
         appsCache = installedAppsRepository.getLaunchableApps()
         appsLoaded = true
         maybeEmit()
     }
 
+    /** Manual-pull variant: bypasses the cache so new installs surface and the local mirror is
+     *  reconciled against the real on-device state. Never runs automatically, so it can't override
+     *  a toggle being applied right now. */
+    suspend fun refreshAll() {
+        installedAppsRepository.invalidate()
+        appsCache = installedAppsRepository.getLaunchableApps()
+        suspendedPackages = suspendStateRepository.reconcile(
+            appsCache.associate { it.packageName to !it.isEnabled }
+        )
+        appsLoaded = true
+        maybeEmit()
+    }
+
     private fun maybeEmit() {
-        // Hold the first frame back until both inputs are available: app rows alone (or toggle
-        // state alone) would render a list whose switches jump to their real states a moment after
-        // the page opens.
+        // Hold the first frame until rows and toggle state are ready, so switches don't pop in.
         if (appsLoaded && statesReady) {
             emitState()
         }
