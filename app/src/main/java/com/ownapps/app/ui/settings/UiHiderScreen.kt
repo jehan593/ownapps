@@ -215,12 +215,7 @@ fun UiHiderScreen(onBack: () -> Unit) {
                     HorizontalDivider()
                     Spacer(Modifier.height(12.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                        Text("Scripts", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { editorState = ScriptEditorState(existingId = null) }) {
-                            Icon(Icons.Filled.Add, contentDescription = "Add script")
-                        }
-                    }
+                    Text("Scripts", style = MaterialTheme.typography.titleSmall)
                     Text(
                         "Each script works on one app while it's open.",
                         style = MaterialTheme.typography.bodySmall
@@ -236,6 +231,15 @@ fun UiHiderScreen(onBack: () -> Unit) {
                             onDelete = { pendingDelete = script }
                         )
                         Spacer(Modifier.height(6.dp))
+                    }
+
+                    Button(
+                        onClick = { editorState = ScriptEditorState(existingId = null) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Add script")
                     }
                 }
             }
