@@ -5,6 +5,12 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.provider.Settings
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -120,105 +126,118 @@ fun UiHiderScreen(onBack: () -> Unit) {
     var editorState by remember { mutableStateOf<ScriptEditorState?>(null) }
     var pendingDelete by remember { mutableStateOf<UiHiderScriptItem?>(null) }
 
-    if (editorState != null) {
-        val state = editorState!!
-        ScriptEditorScreen(
-            state = state,
-            validate = viewModel::validateSource,
-            onBack = { editorState = null },
-            onSave = { packageName, label, source ->
-                viewModel.upsertCustomScript(state.existingId, packageName, label, source)
-                editorState = null
+    AnimatedContent(
+        targetState = editorState,
+        modifier = Modifier.fillMaxSize(),
+        transitionSpec = {
+            val direction = if (targetState != null) {
+                AnimatedContentTransitionScope.SlideDirection.Start
+            } else {
+                AnimatedContentTransitionScope.SlideDirection.End
             }
-        )
-        return
-    }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("UI Hider") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    Switch(
-                        checked = uiState.isActive,
-                        onCheckedChange = { viewModel.setActive(it) },
-                        modifier = Modifier.padding(end = 20.dp)
-                    )
+            (slideIntoContainer(direction, tween(300)) + fadeIn(tween(300))) togetherWith
+                (slideOutOfContainer(direction, tween(300)) + fadeOut(tween(300)))
+        },
+        label = "Script editor"
+    ) { state ->
+        if (state != null) {
+            ScriptEditorScreen(
+                state = state,
+                validate = viewModel::validateSource,
+                onBack = { editorState = null },
+                onSave = { packageName, label, source ->
+                    viewModel.upsertCustomScript(state.existingId, packageName, label, source)
+                    editorState = null
                 }
             )
-        }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-        ) {
-            if (uiState.isActive && !uiState.serviceEnabled) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface
+        } else {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("UI Hider") },
+                        navigationIcon = {
+                            IconButton(onClick = onBack) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            }
+                        },
+                        actions = {
+                            Switch(
+                                checked = uiState.isActive,
+                                onCheckedChange = { viewModel.setActive(it) },
+                                modifier = Modifier.padding(end = 20.dp)
+                            )
+                        }
                     )
+                }
+            ) { padding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
-                        Text(
-                            "Enable the accessibility service to make overlays work.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.error
+                    if (uiState.isActive && !uiState.serviceEnabled) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface
+                            )
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    "Enable the accessibility service to make overlays work.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(Modifier.height(8.dp))
+                                Button(
+                                    onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) { Text("Open accessibility settings") }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+
+                    SecondaryActionButton(
+                        onClick = ::startNodePicker,
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = uiState.serviceEnabled
+                    ) {
+                        Icon(Icons.Filled.GpsFixed, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Pick an element with the Node Picker")
+                    }
+
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        Text("Scripts", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                        IconButton(onClick = { editorState = ScriptEditorState(existingId = null) }) {
+                            Icon(Icons.Filled.Add, contentDescription = "Add script")
+                        }
+                    }
+                    Text(
+                        "Each script works on one app while it's open.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+
+                    Spacer(Modifier.height(8.dp))
+
+                    for (script in uiState.scripts) {
+                        ScriptRow(
+                            script = script,
+                            onToggleEnabled = { enabled -> viewModel.toggleCustomScript(script.id, enabled) },
+                            onEdit = { editorState = scriptEditorState(script) },
+                            onDelete = { pendingDelete = script }
                         )
-                        Spacer(Modifier.height(8.dp))
-                        Button(
-                            onClick = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
-                            modifier = Modifier.fillMaxWidth()
-                        ) { Text("Open accessibility settings") }
+                        Spacer(Modifier.height(6.dp))
                     }
                 }
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            SecondaryActionButton(
-                onClick = ::startNodePicker,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = uiState.serviceEnabled
-            ) {
-                Icon(Icons.Filled.GpsFixed, contentDescription = null)
-                Spacer(Modifier.width(8.dp))
-                Text("Pick an element with the Node Picker")
-            }
-
-            Spacer(Modifier.height(12.dp))
-            HorizontalDivider()
-            Spacer(Modifier.height(12.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text("Scripts", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
-                IconButton(onClick = { editorState = ScriptEditorState(existingId = null) }) {
-                    Icon(Icons.Filled.Add, contentDescription = "Add script")
-                }
-            }
-            Text(
-                "Each script works on one app while it's open.",
-                style = MaterialTheme.typography.bodySmall
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            for (script in uiState.scripts) {
-                ScriptRow(
-                    script = script,
-                    onToggleEnabled = { enabled -> viewModel.toggleCustomScript(script.id, enabled) },
-                    onEdit = { editorState = scriptEditorState(script) },
-                    onDelete = { pendingDelete = script }
-                )
-                Spacer(Modifier.height(6.dp))
             }
         }
     }
@@ -280,7 +299,7 @@ private fun ScriptRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                .padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(
