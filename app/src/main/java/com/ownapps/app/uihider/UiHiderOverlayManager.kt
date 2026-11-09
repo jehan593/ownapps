@@ -60,8 +60,10 @@ class UiHiderOverlayManager(private val service: AccessibilityService) {
 
     fun clearAll() {
         handler.post {
+            val count = overlays.size
             for ((_, overlay) in overlays) removeView(overlay.view)
             overlays.clear()
+            if (count > 0) Log.d("UiHider", "OVERLAY-VIEWS removed=$count")
         }
     }
 

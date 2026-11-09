@@ -25,8 +25,9 @@ import androidx.compose.ui.unit.dp
 /**
  * One app row for the All Apps list. Left: icon + label, right: an enable/disable [Switch].
  *
- * Tapping the row opens the app via [onOpen]. The caller confirms before opening a disabled app.
- * Disabling needs [canDisable]; enabling is always allowed.
+ * Only the icon and the label open the app via [onOpen] — the rest of the row is inert so an
+ * accidental tap between the elements can't launch anything. The caller confirms before opening
+ * a disabled app. Disabling needs [canDisable]; enabling is always allowed.
  */
 @Composable
 fun AppRowWithBlock(
@@ -45,17 +46,28 @@ fun AppRowWithBlock(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable(interactionSource = noIndication, indication = null) { onOpen() }
             .padding(vertical = 10.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AppIcon(icon = icon)
+        AppIcon(
+            icon = icon,
+            modifier = Modifier.clickable(
+                interactionSource = noIndication,
+                indication = null
+            ) { onOpen() }
+        )
         Spacer(modifier = Modifier.width(12.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.clickable(
+                interactionSource = noIndication,
+                indication = null
+            ) { onOpen() }
         )
+        // Invisible filler: keeps the grip/pin/switch trailing while the clickable area stays
+        // limited to the icon and the drawn label text, so blank space in the row can't launch.
+        Spacer(modifier = Modifier.weight(1f))
         if (reorderGripModifier != null) {
             ReorderGrip(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
