@@ -3,6 +3,7 @@ package com.ownapps.app.ui.components
 import android.graphics.drawable.Drawable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -57,17 +58,18 @@ fun AppRowWithBlock(
             ) { onOpen() }
         )
         Spacer(modifier = Modifier.width(12.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.clickable(
-                interactionSource = noIndication,
-                indication = null
-            ) { onOpen() }
-        )
-        // Invisible filler: keeps the grip/pin/switch trailing while the clickable area stays
-        // limited to the icon and the drawn label text, so blank space in the row can't launch.
-        Spacer(modifier = Modifier.weight(1f))
+        // The weighted box takes the leftover width so the grip/pin/switch stay trailing, while
+        // the clickable is on the text itself so blank space in the row can't launch the app.
+        Box(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.clickable(
+                    interactionSource = noIndication,
+                    indication = null
+                ) { onOpen() }
+            )
+        }
         if (reorderGripModifier != null) {
             ReorderGrip(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
