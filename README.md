@@ -3,24 +3,24 @@
 A fully offline Android app manager. Browse your installed apps, pin favorites to the top, and
 disable or enable any app with a switch. No internet, no screen-time tracking, no analytics.
 
-> **FYI:** This project is fully vibe coded
+> **FYI:** This project is fully vibe coded for my personal use and taste. It's shared publicly in case it's useful to you. Feel free to fork it and adapt it to your needs.
 
 ## Features
 
-- **All Apps list** — every installed app in one searchable list.
-- **Pin apps** — keep favorites at the top; disable or enable them all at once.
-- **Disable apps** — flick a switch to hide an app from your launcher until you enable it again.
-- **Firewall** — block an app's internet access, one app at a time (needs Android 11+).
-- **UI Hider** — an optional tool that hides distracting buttons and pop-ups in your apps
+- **All Apps list** ΓÇö every installed app in one searchable list.
+- **Pin apps** ΓÇö keep favorites at the top; disable or enable them all at once.
+- **Disable apps** ΓÇö flick a switch to hide an app from your launcher until you enable it again.
+- **Firewall** ΓÇö block an app's internet access, one app at a time (needs Android 11+).
+- **UI Hider** ΓÇö an optional tool that hides distracting buttons and pop-ups in your apps
   (e.g. WhatsApp), using a simple on-screen element picker or a tiny script.
 
 ## One-time setup
 
-OwnApps can't do this for you — you do it once on your device:
+OwnApps can't do this for you ΓÇö you do it once on your device:
 
 1. Install and start a Shizuku-family backend ([Shizuku](https://shizuku.rikka.app/) works over
    ADB or root; [Sui](https://github.com/ZQZCC/Sui) works on rooted devices).
-2. Open OwnApps → **Settings** → **Grant Shizuku permission** (once).
+2. Open OwnApps ΓåÆ **Settings** ΓåÆ **Grant Shizuku permission** (once).
 3. Back in the app list, flick any switch to disable that app.
 
 Browsing the list works without Shizuku; disabling and the firewall need it.
@@ -32,7 +32,7 @@ accessibility service when Android asks. OwnApps can't enable it for you.
 
 ### Create a hiding rule with the Node Picker
 
-1. In OwnApps → **UI Hider**, tap **Pick an element with the Node Picker**. Open the app you
+1. In OwnApps ΓåÆ **UI Hider**, tap **Pick an element with the Node Picker**. Open the app you
    want to change, then tap the **Node Picker active** notification.
 
 2. Tap the element you want to hide. It is highlighted.
