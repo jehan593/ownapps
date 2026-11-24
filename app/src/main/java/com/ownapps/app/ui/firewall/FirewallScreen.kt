@@ -75,6 +75,7 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 fun FirewallScreen(onBack: () -> Unit) {
     val container = rememberAppContainer()
     val scope = rememberCoroutineScope()
+    val appContext = LocalContext.current.applicationContext as Context
 
     val viewModel: FirewallViewModel = viewModel(
         // Scope to the activity (not the back-stack entry) so the loaded list survives leaving
@@ -136,7 +137,9 @@ fun FirewallScreen(onBack: () -> Unit) {
         }
     }
 
-    val canToggle = uiState.canControl && uiState.firewallEnabled
+    // While a boot restore is pending the saved intent is shown as ON, but no per-app rule can be
+    // trusted until it has actually been re-applied.
+    val canToggle = uiState.canControl && uiState.firewallEnabled && !uiState.restorePending
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -198,7 +201,7 @@ fun FirewallScreen(onBack: () -> Unit) {
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(horizontal = 16.dp)
                 )
-            } else if (uiState.checkedBackend && !uiState.canControl) {
+            } else if (uiState.checkedBackend && !uiState.canControl && !uiState.unsupported) {
                 Spacer(Modifier.height(8.dp))
                 Card(
                     modifier = Modifier
@@ -233,11 +236,30 @@ fun FirewallScreen(onBack: () -> Unit) {
                     }
                 }
             }
+            uiState.statusMessage?.let { message ->
+                Spacer(Modifier.height(8.dp))
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
+                ) {
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            }
 
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 placeholder = { Text("Search apps") },

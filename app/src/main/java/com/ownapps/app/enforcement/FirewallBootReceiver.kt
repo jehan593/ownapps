@@ -10,11 +10,14 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /**
- * Re-applies the persisted firewall rules after a device reboot, because Android clears Chain 3
- * (and every per-app rule) on reboot. Deliberately only listens to `BOOT_COMPLETED` (post-unlock)
- * rather than `LOCKED_BOOT_COMPLETED`: the Room database holding the blocked list lives in
- * credential-protected storage and isn't readable until the user unlocks the device. Uses
- * [FirewallBootRestorer], which no-ops when the firewall was deliberately left off.
+ * Makes one immediate restore attempt after boot. Android clears Chain 3 and every per-app rule on
+ * reboot, so a saved ON state would otherwise silently stop being enforced. Deliberately only
+ * listens to `BOOT_COMPLETED` (post-unlock): the Room database holding the blocked list lives in
+ * credential-protected storage and isn't readable until the user unlocks the device.
+ *
+ * Shizuku often starts later than this receiver. A failed attempt is therefore not final: the
+ * coordinator keeps the saved intent and marks the restore pending, and [OwnAppsApplication] retries
+ * when Shizuku's binder arrives (as does the Firewall screen when opened).
  */
 class FirewallBootReceiver : BroadcastReceiver() {
 
@@ -24,8 +27,14 @@ class FirewallBootReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                app.container.firewallBootRestorer.restore()
+                when (app.container.firewallRestoreCoordinator.restore()) {
+                    FirewallRestoreResult.PENDING -> FirewallRestoreNotifier.showWaiting(app)
+                    FirewallRestoreResult.RESTORED,
+                    FirewallRestoreResult.SKIPPED,
+                    FirewallRestoreResult.UNSUPPORTED -> FirewallRestoreNotifier.cancel(app)
+                }
             } finally {
+                // Post/cancel before finish(): the process can be killed right after finish().
                 pendingResult.finish()
             }
         }

@@ -18,4 +18,8 @@
     <string name="node_picker_notif_title">Node Picker active</string>
     <string name="node_picker_notif_text">Tap to inspect the current app and build a hiding rule.</string>
     <string name="node_picker_stop">Stop</string>
+
+    <string name="firewall_restore_channel_name">Firewall restore</string>
+    <string name="firewall_restore_notif_title">Firewall waiting for Shizuku</string>
+    <string name="firewall_restore_notif_text">Your saved firewall rules will be restored when Shizuku starts.</string>
 </resources>

@@ -13,8 +13,8 @@ import com.ownapps.app.data.repository.FirewallRulesRepository
 import com.ownapps.app.data.repository.PinnedAppsRepository
 import com.ownapps.app.data.repository.SettingsRepository
 import com.ownapps.app.enforcement.FirewallBlocker
-import com.ownapps.app.enforcement.FirewallBootRestorer
 import com.ownapps.app.enforcement.FirewallController
+import com.ownapps.app.enforcement.FirewallRestoreCoordinator
 import com.ownapps.app.enforcement.PackageBlocker
 import com.ownapps.app.enforcement.PackageController
 import com.ownapps.app.enforcement.ShizukuFirewallController
@@ -34,7 +34,7 @@ interface AppContainer {
     val firewallBlocker: FirewallBlocker
     val firewallRulesRepository: FirewallRulesRepository
     val firewallPinnedAppsRepository: FirewallPinnedAppsRepository
-    val firewallBootRestorer: FirewallBootRestorer
+    val firewallRestoreCoordinator: FirewallRestoreCoordinator
 }
 
 class DefaultAppContainer(private val context: Context) : AppContainer {
@@ -85,8 +85,8 @@ class DefaultAppContainer(private val context: Context) : AppContainer {
         FirewallPinnedAppsRepository(database.firewallPinnedAppDao())
     }
 
-    override val firewallBootRestorer: FirewallBootRestorer by lazy {
-        FirewallBootRestorer(firewallController, firewallRulesRepository, settingsRepository)
+    override val firewallRestoreCoordinator: FirewallRestoreCoordinator by lazy {
+        FirewallRestoreCoordinator(firewallController, firewallRulesRepository, settingsRepository)
     }
 }
 

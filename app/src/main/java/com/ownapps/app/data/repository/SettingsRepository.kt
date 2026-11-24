@@ -26,9 +26,13 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         val UI_HIDER_CONFIG = stringPreferencesKey("ui_hider_config")
         /** Records that the built-in starter scripts have been seeded into the user's script list. */
         val UI_HIDER_SCRIPTS_SEEDED = booleanPreferencesKey("ui_hider_scripts_seeded")
-        /** Last known "is the firewall actually enforced" state — Chain 3 is reset by Android on
-         *  reboot, so this is what the boot receiver consults to decide whether to re-enable it. */
+        /** The user's firewall intent. Chain 3 is reset by Android on reboot, so this is what the
+         *  restore coordinator consults to decide whether to re-enable it. Never cleared by a
+         *  failed restore — the user's choice must survive until Shizuku is available. */
         val FIREWALL_ENABLED = booleanPreferencesKey("firewall_enabled")
+        /** Saved ON, but not currently enforced because Shizuku wasn't ready (or a rule failed).
+         *  Drives the visible "waiting for Shizuku" state and retries. */
+        val FIREWALL_RESTORE_PENDING = booleanPreferencesKey("firewall_restore_pending")
     }
 
     private val gson = Gson()
@@ -37,6 +41,7 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
      *  at its real position from the very first frame instead of waiting on an async DataStore
      *  read. Seeded via [preloadFirewallState] and kept in step by every write. */
     private val cachedFirewallEnabled = AtomicBoolean(false)
+    private val cachedFirewallRestorePending = AtomicBoolean(false)
 
     val uiHiderEnabledFlow: Flow<Boolean> =
         dataStore.data.map { it[UI_HIDER_ENABLED] ?: false }
@@ -56,22 +61,37 @@ class SettingsRepository(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[UI_HIDER_ENABLED] = enabled }
     }
 
-    /** Whether the firewall was left enforced (Chain 3 on) the last time it was toggled. Overrides
-     *  the live platform state after a reboot, where Android has silently reset Chain 3 to off. */
+    /** The user's firewall intent. Android silently resets Chain 3 on reboot, so this is the saved
+     *  state the restore coordinator tries to re-enforce; a failed restore does not erase it. */
     suspend fun isFirewallEnabled(): Boolean = dataStore.data.first()[FIREWALL_ENABLED] ?: false
 
-    /** Seeds [firewallEnabledCached] from disk. Called by the Firewall ViewModel up front so a
-     *  fresh screen still renders the correct switch position on its very first frame. */
+    val firewallRestorePendingFlow: Flow<Boolean> =
+        dataStore.data.map { it[FIREWALL_RESTORE_PENDING] ?: false }
+
+    /** True while the saved firewall state hasn't been re-applied after boot / a backend failure. */
+    suspend fun isFirewallRestorePending(): Boolean =
+        dataStore.data.first()[FIREWALL_RESTORE_PENDING] ?: false
+
+    /** Seeds both cached firewall flags from disk. Called by the Firewall ViewModel up front so a
+     *  fresh screen renders the correct switch and pending state on its very first frame. */
     suspend fun preloadFirewallState() {
-        cachedFirewallEnabled.set(isFirewallEnabled())
+        val prefs = dataStore.data.first()
+        cachedFirewallEnabled.set(prefs[FIREWALL_ENABLED] ?: false)
+        cachedFirewallRestorePending.set(prefs[FIREWALL_RESTORE_PENDING] ?: false)
     }
 
-    /** Synchronous read of the last known persisted firewall state, for the first rendered frame. */
+    /** Synchronous reads of the last known persisted state, for the first rendered frame. */
     fun firewallEnabledCached(): Boolean = cachedFirewallEnabled.get()
+    fun firewallRestorePendingCached(): Boolean = cachedFirewallRestorePending.get()
 
     suspend fun setFirewallEnabled(enabled: Boolean) {
         cachedFirewallEnabled.set(enabled)
         dataStore.edit { it[FIREWALL_ENABLED] = enabled }
+    }
+
+    suspend fun setFirewallRestorePending(pending: Boolean) {
+        cachedFirewallRestorePending.set(pending)
+        dataStore.edit { it[FIREWALL_RESTORE_PENDING] = pending }
     }
 
     /** Persist the full UIHider config, keeping [UI_HIDER_ENABLED] in step with [UiHiderConfig.isActive]. */
