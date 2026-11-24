@@ -59,6 +59,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ownapps.app.ui.components.FirewallRow
+import com.ownapps.app.ui.components.ListEmptyText
+import com.ownapps.app.ui.components.StateFilter
+import com.ownapps.app.ui.components.StateFilterChips
 import com.ownapps.app.ui.rememberAppContainer
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -90,19 +93,27 @@ fun FirewallScreen(onBack: () -> Unit) {
                     container.firewallPinnedAppsRepository,
                     container.firewallController,
                     container.firewallBlocker,
-                    container.settingsRepository
+                    container.firewallRestoreCoordinator,
+                    container.settingsRepository,
+                    appContext
                 )
             }
         }
     )
     val uiState by viewModel.uiState.collectAsState()
+    val selectedFilter = uiState.filter
     var searchQuery by remember { mutableStateOf("") }
     var isRefreshing by remember { mutableStateOf(false) }
-    val filteredApps = remember(searchQuery, uiState.rows) {
-        if (searchQuery.isBlank()) {
+    val filteredApps = remember(searchQuery, selectedFilter, uiState.rows) {
+        val searched = if (searchQuery.isBlank()) {
             uiState.rows
         } else {
             uiState.rows.filter { it.label.contains(searchQuery, ignoreCase = true) }
+        }
+        when (selectedFilter) {
+            StateFilter.ALL -> searched
+            StateFilter.ENABLED -> searched.filterNot { it.isBlocked }
+            StateFilter.DISABLED -> searched.filter { it.isBlocked }
         }
     }
     val pinnedApps = remember(filteredApps) {
@@ -127,6 +138,9 @@ fun FirewallScreen(onBack: () -> Unit) {
     // user back to the top so the Pinned section gets visible again.
     LaunchedEffect(searchQuery) {
         if (searchQuery.isBlank()) lazyListState.scrollToItem(0)
+    }
+    LaunchedEffect(selectedFilter) {
+        lazyListState.scrollToItem(0)
     }
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         if (orderedPinned.size < 2) return@rememberReorderableLazyListState
@@ -273,6 +287,8 @@ fun FirewallScreen(onBack: () -> Unit) {
                 }
             )
 
+            StateFilterChips(selected = selectedFilter, onSelected = { viewModel.setFilter(it) })
+
             if (uiState.isLoading && uiState.rows.isEmpty()) {
                 // First load only — prevents the list (pinned apps included) from flashing in
                 // out of nowhere; the launcher-only query is fast so this is a brief spinner.
@@ -281,12 +297,12 @@ fun FirewallScreen(onBack: () -> Unit) {
                 }
             } else {
                 LazyColumn(modifier = Modifier.fillMaxSize(), state = lazyListState) {
-                if (pinnedApps.isNotEmpty() && searchQuery.isBlank()) {
+                if (pinnedApps.isNotEmpty() || searchQuery.isBlank()) {
                     item(key = "pinned_header") {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -294,21 +310,30 @@ fun FirewallScreen(onBack: () -> Unit) {
                                 style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.weight(1f)
                             )
-                            Switch(
-                                // ON = every pinned app has internet access, mirroring the per-row
-                                // switches. Same gating as the per-row switches: the master switch
-                                // must be enforcing and the backend available.
-                                checked = pinnedApps.all { !it.isBlocked },
-                                onCheckedChange = { allowAll ->
-                                    scope.launch {
-                                        if (allowAll) viewModel.unblockAllPinned()
-                                        else viewModel.blockAllPinned()
-                                    }
-                                },
-                                enabled = canToggle,
-                                // Matches the row switches, whose trailing edge sits 16dp further
-                                // in (card outer + row inner padding).
-                                modifier = Modifier.padding(end = 16.dp)
+                            if (pinnedApps.isNotEmpty()) {
+                                Switch(
+                                    // ON = every pinned app has internet access, mirroring the per-row
+                                    // switches. Same gating as the per-row switches: the master switch
+                                    // must be enforcing and the backend available.
+                                    checked = pinnedApps.all { !it.isBlocked },
+                                    onCheckedChange = { allowAll ->
+                                        scope.launch {
+                                            if (allowAll) viewModel.unblockAllPinned()
+                                            else viewModel.blockAllPinned()
+                                        }
+                                    },
+                                    enabled = canToggle,
+                                    // Matches the row switches, whose trailing edge sits 16dp further
+                                    // in (card outer + row inner padding).
+                                    modifier = Modifier.padding(end = 16.dp)
+                                )
+                            }
+                        }
+                    }
+                    if (displayPinned.isEmpty()) {
+                        item(key = "pinned_empty") {
+                            ListEmptyText(
+                                modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp)
                             )
                         }
                     }
@@ -363,6 +388,13 @@ fun FirewallScreen(onBack: () -> Unit) {
                     HorizontalDivider(
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
+                }
+                if (otherApps.isEmpty()) {
+                    item(key = "other_empty") {
+                        ListEmptyText(
+                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp)
+                        )
+                    }
                 }
                 items(otherApps, key = { it.packageName }) { app ->
                     Card(

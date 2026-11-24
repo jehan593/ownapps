@@ -7,10 +7,12 @@ import com.ownapps.app.data.pm.LaunchableApp
 import com.ownapps.app.data.repository.AppSuspendStateRepository
 import com.ownapps.app.data.repository.PinnedAppsRepository
 import com.ownapps.app.enforcement.PackageBlocker
+import com.ownapps.app.ui.components.StateFilter
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class AppListRow(
@@ -25,6 +27,7 @@ data class AppListRow(
 data class AppListUiState(
     val apps: List<AppListRow> = emptyList(),
     val pinnedOrder: List<String> = emptyList(),
+    val filter: StateFilter = StateFilter.ALL,
     val canDisable: Boolean = false,
     val permissionNeeded: Boolean = false,
     val isLoading: Boolean = true
@@ -118,29 +121,33 @@ class AppListViewModel(
     }
 
     private fun maybeEmit() {
-        // Hold the first frame until rows and toggle state are ready, so switches don't pop in.
-        if (appsLoaded && statesReady) {
-            emitState()
-        }
+        if (appsLoaded && statesReady) emitState()
     }
 
     private fun emitState() {
-        _uiState.value = AppListUiState(
-            apps = appsCache.map { app ->
-                AppListRow(
-                    packageName = app.packageName,
-                    label = app.label,
-                    icon = app.icon,
-                    isSuspended = app.packageName in suspendedPackages,
-                    isPinned = app.packageName in pinnedPackages,
-                    pinPosition = pinnedPositions[app.packageName] ?: Int.MAX_VALUE
-                )
-            },
-            pinnedOrder = pinnedOrder,
-            canDisable = packageBlocker.canDisable(),
-            permissionNeeded = packageBlocker.isServiceReady() && !packageBlocker.isPermissionGranted(),
-            isLoading = false
-        )
+        _uiState.update { current ->
+            current.copy(
+                apps = appsCache.map { app ->
+                    AppListRow(
+                        packageName = app.packageName,
+                        label = app.label,
+                        icon = app.icon,
+                        isSuspended = app.packageName in suspendedPackages,
+                        isPinned = app.packageName in pinnedPackages,
+                        pinPosition = pinnedPositions[app.packageName] ?: Int.MAX_VALUE
+                    )
+                },
+                pinnedOrder = pinnedOrder,
+                canDisable = packageBlocker.canDisable(),
+                permissionNeeded = packageBlocker.isServiceReady() && !packageBlocker.isPermissionGranted(),
+                isLoading = false
+            )
+        }
+    }
+
+    /** UI-only filter; always starts at All on a fresh launch and is never persisted. */
+    fun setFilter(filter: StateFilter) {
+        _uiState.update { it.copy(filter = filter) }
     }
 
     fun toggleEnabled(packageName: String, disable: Boolean) {

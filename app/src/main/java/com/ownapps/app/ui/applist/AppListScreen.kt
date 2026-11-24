@@ -1,5 +1,6 @@
 package com.ownapps.app.ui.applist
 
+import android.content.Context
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Box
@@ -58,6 +59,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import com.ownapps.app.ui.components.AppRowWithBlock
+import com.ownapps.app.ui.components.ListEmptyText
+import com.ownapps.app.ui.components.StateFilter
+import com.ownapps.app.ui.components.StateFilterChips
 import com.ownapps.app.ui.firewall.FirewallViewModel
 import com.ownapps.app.ui.firewall.findActivity
 import com.ownapps.app.ui.rememberAppContainer
@@ -103,22 +107,30 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit, onOpen
                     container.firewallPinnedAppsRepository,
                     container.firewallController,
                     container.firewallBlocker,
-                    container.settingsRepository
+                    container.firewallRestoreCoordinator,
+                    container.settingsRepository,
+                    context.applicationContext as Context
                 )
             }
         }
     )
     LaunchedEffect(Unit) { firewallViewModel.refresh() }
     val uiState by viewModel.uiState.collectAsState()
+    val selectedFilter = uiState.filter
     var searchQuery by remember { mutableStateOf("") }
     // Package of a disabled app whose row was tapped: ask before enabling + launching.
     var pendingOpen by remember { mutableStateOf<String?>(null) }
     var isRefreshing by remember { mutableStateOf(false) }
-    val filteredApps = remember(searchQuery, uiState.apps) {
-        if (searchQuery.isBlank()) {
+    val filteredApps = remember(searchQuery, selectedFilter, uiState.apps) {
+        val searched = if (searchQuery.isBlank()) {
             uiState.apps
         } else {
             uiState.apps.filter { it.label.contains(searchQuery, ignoreCase = true) }
+        }
+        when (selectedFilter) {
+            StateFilter.ALL -> searched
+            StateFilter.ENABLED -> searched.filterNot { it.isSuspended }
+            StateFilter.DISABLED -> searched.filter { it.isSuspended }
         }
     }
     val pinnedApps = remember(filteredApps) {
@@ -142,6 +154,9 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit, onOpen
     // Restoring the list after clearing search should show the pinned section again.
     LaunchedEffect(searchQuery) {
         if (searchQuery.isBlank()) lazyListState.scrollToItem(0)
+    }
+    LaunchedEffect(selectedFilter) {
+        lazyListState.scrollToItem(0)
     }
     val reorderableState = rememberReorderableLazyListState(lazyListState) { from, to ->
         if (orderedPinned.size < 2) return@rememberReorderableLazyListState
@@ -230,7 +245,9 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit, onOpen
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 placeholder = { Text("Search apps") },
@@ -243,6 +260,7 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit, onOpen
                     }
                 }
             )
+            StateFilterChips(selected = selectedFilter, onSelected = { viewModel.setFilter(it) })
             if (uiState.isLoading && uiState.apps.isEmpty()) {
                 // First load only. The list and its toggle states are populated together (see
                 // AppListViewModel.maybeEmit), so a spinner is shown instead of an empty list that
@@ -252,12 +270,12 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit, onOpen
                 }
             } else {
             LazyColumn(modifier = Modifier.fillMaxSize(), state = lazyListState) {
-                if (pinnedApps.isNotEmpty() && searchQuery.isBlank()) {
+                if (pinnedApps.isNotEmpty() || searchQuery.isBlank()) {
                     item(key = "pinned_header") {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
@@ -265,21 +283,30 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit, onOpen
                                 style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.weight(1f)
                             )
-                            Switch(
-                                // ON = every pinned app is enabled, mirroring the per-row switches.
-                                checked = pinnedApps.all { !it.isSuspended },
-                                onCheckedChange = { enableAll ->
-                                    scope.launch {
-                                        if (enableAll) viewModel.enableAllPinned()
-                                        else viewModel.disableAllPinned()
-                                    }
-                                },
-                                // Enabling is always allowed; disabling needs the privileged backend.
-                                enabled = if (pinnedApps.all { !it.isSuspended }) uiState.canDisable else true,
-                                // The row switches hide inside cards whose 16dp outer + 16dp inner
-                                // padding seats their trailing edge 16dp further in; pad this header
-                                // switch the same amount so its toggle lines up with theirs.
-                                modifier = Modifier.padding(end = 16.dp)
+                            if (pinnedApps.isNotEmpty()) {
+                                Switch(
+                                    // ON = every pinned app is enabled, mirroring the per-row switches.
+                                    checked = pinnedApps.all { !it.isSuspended },
+                                    onCheckedChange = { enableAll ->
+                                        scope.launch {
+                                            if (enableAll) viewModel.enableAllPinned()
+                                            else viewModel.disableAllPinned()
+                                        }
+                                    },
+                                    // Enabling is always allowed; disabling needs the privileged backend.
+                                    enabled = if (pinnedApps.all { !it.isSuspended }) uiState.canDisable else true,
+                                    // The row switches hide inside cards whose 16dp outer + 16dp inner
+                                    // padding seats their trailing edge 16dp further in; pad this header
+                                    // switch the same amount so its toggle lines up with theirs.
+                                    modifier = Modifier.padding(end = 16.dp)
+                                )
+                            }
+                        }
+                    }
+                    if (displayPinned.isEmpty()) {
+                        item(key = "pinned_empty") {
+                            ListEmptyText(
+                                modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp)
                             )
                         }
                     }
@@ -339,6 +366,13 @@ fun AppListScreen(onOpenSettings: () -> Unit, onOpenFirewall: () -> Unit, onOpen
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     }
+                if (otherApps.isEmpty()) {
+                    item(key = "other_empty") {
+                        ListEmptyText(
+                            modifier = Modifier.padding(horizontal = 32.dp, vertical = 12.dp)
+                        )
+                    }
+                }
 
                 items(otherApps, key = { it.packageName }) { app ->
                     Card(

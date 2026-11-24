@@ -39,6 +39,7 @@ data class FirewallRow(
 data class FirewallUiState(
     val rows: List<FirewallRow> = emptyList(),
     val pinnedOrder: List<String> = emptyList(),
+    val filter: StateFilter = StateFilter.ALL,
     val firewallEnabled: Boolean = false,
     val canControl: Boolean = false,
     val isServiceReady: Boolean = false,
