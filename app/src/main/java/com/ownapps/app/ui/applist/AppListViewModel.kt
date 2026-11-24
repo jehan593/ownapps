@@ -64,13 +64,41 @@ class AppListViewModel(
         }
     }
 
-    /** Reloads the app list, served from a short-lived cache so re-opening stays instant. */
+    /** Reloads the app list, served from a short-lived cache so re-opening stays instant.
+     *  The local mirror is only reconciled on a deliberate [refreshAll], never here: doing it
+     *  automatically races any toggle whose local DB write is still being emitted. */
     suspend fun refresh() {
-        // Show the last snapshot immediately if available so a refresh never flashes a spinner.
         if (appsCache.isNotEmpty() && statesReady) emitState()
         appsCache = installedAppsRepository.getLaunchableApps()
         appsLoaded = true
         maybeEmit()
+        reapplyDisablesAfterUpdates()
+        emitState()
+    }
+
+    /** Android re-enables a disabled app when it receives an update. Only packages we actually saw
+     *  replaced (via the package-change receiver) are considered, so this can never re-disable an
+     *  app just because of a flaky timestamp or a stale cached list. */
+    private suspend fun reapplyDisablesAfterUpdates() {
+        if (!packageBlocker.canDisable()) return
+        val replaced = installedAppsRepository.takeReplacedPackages()
+        if (replaced.isEmpty()) return
+        val suspended = suspendStateRepository.getSuspendedPackages()
+        for (packageName in replaced) {
+            if (packageName !in suspended) continue
+            val app = appsCache.firstOrNull { it.packageName == packageName } ?: continue
+            if (!app.isEnabled) continue
+            val applied = packageBlocker.disable(packageName)
+            if (applied) {
+                // Keep the current snapshot in step so emitState() shows the re-disabled app.
+                appsCache = appsCache.map {
+                    if (it.packageName == packageName) it.copy(isEnabled = false) else it
+                }
+            } else {
+                // Never claim a failed re-disable worked.
+                suspendStateRepository.markUnsuspended(packageName)
+            }
+        }
     }
 
     /** Manual-pull variant: bypasses the cache so new installs surface and the local mirror is
@@ -79,6 +107,9 @@ class AppListViewModel(
     suspend fun refreshAll() {
         installedAppsRepository.invalidate()
         appsCache = installedAppsRepository.getLaunchableApps()
+        // Re-apply disables before reconciling, so an app that was re-enabled by an update isn't
+        // recorded as deliberately enabled and left that way.
+        reapplyDisablesAfterUpdates()
         suspendedPackages = suspendStateRepository.reconcile(
             appsCache.associate { it.packageName to !it.isEnabled }
         )
@@ -148,7 +179,7 @@ class AppListViewModel(
         }
     }
 
-    /** Enables (re-enables) every currently-pinned app. */
+    /** Re-enables every currently-pinned app. */
     fun enableAllPinned() {
         viewModelScope.launch {
             packageBlocker.enableAll(pinnedPackages)

@@ -16,6 +16,11 @@ class PackageChangeReceiver(private val installedAppsRepository: InstalledAppsRe
 
     override fun onReceive(context: Context, intent: Intent) {
         installedAppsRepository.invalidate()
+        // Android re-enables a disabled app when it is updated. Remember the package so the All
+        // Apps screen can re-disable it instead of silently showing it as enabled again.
+        if (intent.action == Intent.ACTION_PACKAGE_REPLACED) {
+            intent.data?.schemeSpecificPart?.let { installedAppsRepository.notePackageReplaced(it) }
+        }
     }
 
     fun register(context: Context) {

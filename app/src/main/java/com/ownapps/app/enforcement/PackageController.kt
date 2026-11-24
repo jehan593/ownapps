@@ -16,8 +16,9 @@ import rikka.shizuku.SystemServiceHelper
  * and stops it launching until re-enabled.
  */
 interface PackageController {
-    suspend fun disable(packageName: String)
-    suspend fun enable(packageName: String)
+    /** True when the privileged backend accepted the change; false when it failed. */
+    suspend fun disable(packageName: String): Boolean
+    suspend fun enable(packageName: String): Boolean
     /** True when a Shizuku-family backend is installed and its binder is alive. */
     fun isServiceReady(): Boolean
     /** True when this app has been granted the Shizuku-family permission. */
@@ -29,13 +30,11 @@ interface PackageController {
 
 class ShizukuPackageController : PackageController {
 
-    override suspend fun disable(packageName: String) {
+    override suspend fun disable(packageName: String): Boolean =
         setEnabled(packageName, COMPONENT_ENABLED_STATE_DISABLED_USER)
-    }
 
-    override suspend fun enable(packageName: String) {
+    override suspend fun enable(packageName: String): Boolean =
         setEnabled(packageName, COMPONENT_ENABLED_STATE_ENABLED)
-    }
 
     override fun isServiceReady(): Boolean = try {
         Shizuku.pingBinder()
@@ -70,8 +69,8 @@ class ShizukuPackageController : PackageController {
      * overload expects it. Failures are logged and swallowed rather than crashing the app — the
      * caller's "looks like it didn't take effect" heuristic covers a silent no-op.
      */
-    private fun setEnabled(packageName: String, newState: Int) {
-        try {
+    private fun setEnabled(packageName: String, newState: Int): Boolean {
+        return try {
             val intType = Int::class.javaPrimitiveType
             val binder: IBinder =
                 ShizukuBinderWrapper(SystemServiceHelper.getSystemService("package"))
@@ -93,8 +92,10 @@ class ShizukuPackageController : PackageController {
             } else {
                 method.invoke(pm, packageName, newState, 0, userId)
             }
+            true
         } catch (e: Throwable) {
             Log.e(TAG, "Failed to ${if (newState == COMPONENT_ENABLED_STATE_DISABLED_USER) "disable" else "enable"} $packageName", e)
+            false
         }
     }
 

@@ -49,6 +49,35 @@ class InstalledAppsRepository(private val packageManager: PackageManager, privat
         cachedAtMillis = 0L
     }
 
+    /** Tracks updates seen while OwnApps is running. Android re-enables a disabled app when it is
+     *  updated, so the All Apps screen needs to know which packages to re-disable. */
+    private val replacedPackages = java.util.concurrent.ConcurrentHashMap<String, Long>()
+
+    fun notePackageReplaced(packageName: String) {
+        replacedPackages[packageName] = System.currentTimeMillis()
+    }
+
+    /** Consumes the updates recorded since the last call, so each one is handled exactly once. */
+    fun takeReplacedPackages(): Set<String> {
+        val result = replacedPackages.keys.toSet()
+        replacedPackages.clear()
+        return result
+    }
+
+    /** Package names that really are still installed. Deliberately asked of PackageManager rather
+     *  than the launchable list: an installed app with no launcher icon must not look uninstalled. */
+    suspend fun filterInstalled(packageNames: Collection<String>): Set<String> =
+        withContext(Dispatchers.IO) {
+            packageNames.filterTo(mutableSetOf()) { packageName ->
+                try {
+                    packageManager.getPackageInfo(packageName, 0)
+                    true
+                } catch (_: PackageManager.NameNotFoundException) {
+                    false
+                }
+            }
+        }
+
     /** The launcher intent for opening [packageName], or null if it has none / isn't visible. */
     fun getLaunchIntent(packageName: String): Intent? =
         packageManager.getLaunchIntentForPackage(packageName)

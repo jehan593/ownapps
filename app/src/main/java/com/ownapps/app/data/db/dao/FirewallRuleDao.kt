@@ -16,4 +16,7 @@ interface FirewallRuleDao {
 
     @Upsert
     suspend fun upsert(entity: FirewallRuleEntity)
+
+    @Query("DELETE FROM firewall_rule WHERE packageName IN (:packageNames)")
+    suspend fun delete(packageNames: Collection<String>)
 }

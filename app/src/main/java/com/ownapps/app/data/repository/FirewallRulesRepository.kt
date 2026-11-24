@@ -31,4 +31,9 @@ class FirewallRulesRepository(private val dao: FirewallRuleDao) {
             )
         )
     }
+
+    /** Drops rules for packages that no longer exist, so they can't be silently re-applied later. */
+    suspend fun deleteRules(packageNames: Collection<String>) {
+        if (packageNames.isNotEmpty()) dao.delete(packageNames)
+    }
 }
